@@ -4,6 +4,7 @@
 #include <QFrame>
 
 class QLabel;
+class QMouseEvent;
 
 class CourseCellWidget : public QFrame
 {
@@ -17,6 +18,7 @@ public:
 protected:
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
+    void mouseDoubleClickEvent(QMouseEvent *event) override;
 
 private:
     QLabel *title;

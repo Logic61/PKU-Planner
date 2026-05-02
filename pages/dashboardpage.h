@@ -2,9 +2,13 @@
 #define DASHBOARDPAGE_H
 
 #include <QWidget>
-#include <QFrame>
 
 class QGridLayout;
+class QLabel;
+class QProgressBar;
+class QPushButton;
+class QTimer;
+class QHBoxLayout;
 
 class DashboardPage : public QWidget
 {
@@ -15,8 +19,20 @@ public:
 
 private:
     QGridLayout *grid;
+
+    QLabel *weekLabel;
+    QLabel *timeLabel;
+    QProgressBar *semesterProgress;
+
+    int currentWeek = 9;
+    int realWeek = 9;
+
     void initGrid();
-    QFrame* createCard(QString title);
+    QWidget* createTopBar();
+    QWidget* createBottomStats();
+    QWidget* createRightPanel();
+
+    void updateWeekInfo();
 };
 
 #endif

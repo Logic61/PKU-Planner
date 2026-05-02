@@ -80,3 +80,22 @@ CMakeLists.txt.user*
 .rcc/
 .uic/
 /build*/
+
+# [必须补充] CMake 产生的本地配置与缓存
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+_deps/
+
+# [必须补充] 现代 IDE 缓存
+.vscode/            # 如果你用 VS Code 写的代码
+.qtc_clangd/        # Qt Creator 的代码索引缓存
+.cmake/             # CMake 的本地状态
+*.user              # Qt Creator 的用户配置文件（不带前缀的也补上）
+
+# [可选但有用] 如果你用了单元测试或外部库
+bin/
+lib/

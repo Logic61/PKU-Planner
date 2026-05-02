@@ -4,6 +4,11 @@
 #include <QToolTip>
 #include <QTimer>
 #include <QEnterEvent>
+#include <QMouseEvent>
+#include <QDialog>
+#include <QFormLayout>
+#include <QLineEdit>
+#include <QDialogButtonBox>
 
 CourseCellWidget::CourseCellWidget(QWidget *parent)
     : QFrame(parent)
@@ -64,4 +69,37 @@ void CourseCellWidget::enterEvent(QEnterEvent *)
 void CourseCellWidget::leaveEvent(QEvent *)
 {
     QToolTip::hideText();
+}
+
+void CourseCellWidget::mouseDoubleClickEvent(QMouseEvent *)
+{
+    QDialog dialog;
+    dialog.setWindowTitle("编辑课程");
+
+    QFormLayout *layout = new QFormLayout(&dialog);
+
+    QLineEdit *nameEdit = new QLineEdit(title->text());
+    QLineEdit *teacherEdit = new QLineEdit();
+    QLineEdit *roomEdit = new QLineEdit(info->text());
+    QLineEdit *examEdit = new QLineEdit();
+
+    layout->addRow("课程名称", nameEdit);
+    layout->addRow("教师", teacherEdit);
+    layout->addRow("教室", roomEdit);
+    layout->addRow("考试时间", examEdit);
+
+    QDialogButtonBox *buttons = new QDialogButtonBox(
+        QDialogButtonBox::Ok | QDialogButtonBox::Cancel
+    );
+
+    layout->addWidget(buttons);
+
+    connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+
+    if(dialog.exec() == QDialog::Accepted)
+    {
+        title->setText(nameEdit->text());
+        info->setText(roomEdit->text());
+    }
 }
