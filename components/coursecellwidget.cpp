@@ -53,22 +53,28 @@ void CourseCellWidget::setCourse(QString name, QString location, QString teacher
         location + "\n" + teacher
     );
 
-    QString bg = "#E8F0FF";
-    QString hover = "#D6E4FF";
+    // 默认：无DDL（绿色系）
+    QString bg = "#E8F5E9";
+    QString hover = "#C8E6C9";
     QString border = "transparent";
-    QString hoverBorder = "#2B579A";
+    QString hoverBorder = "#4CAF50";
 
     if (daysLeft != -999) {
         if (daysLeft < 0) {
+            // 逾期：红色
             bg = "#FFCDD2"; hover = "#FFCDD2"; hoverBorder = "#D32F2F";
         } else if (daysLeft == 0) {
+            // 今晚截止：橙色
             bg = "#FFAB91"; hover = "#FFAB91"; hoverBorder = "#E64A19";
         } else if (daysLeft <= 3) {
+            // 3天内：黄色
             bg = "#FFCC80"; hover = "#FFCC80"; hoverBorder = "#F57C00";
         } else if (daysLeft <= 7) {
+            // 7天内：浅黄
             bg = "#FFF59D"; hover = "#FFF59D"; hoverBorder = "#FBC02D";
         } else {
-            bg = "white"; hover = "#F5F5F5"; hoverBorder = "#CCC";
+            // DDL不急（>7天）：蓝色系
+            bg = "#E3F2FD"; hover = "#BBDEFB"; hoverBorder = "#1976D2";
         }
     }
 

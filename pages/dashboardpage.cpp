@@ -15,14 +15,24 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QIODevice>
+#include <QScrollArea>
 
 DashboardPage::DashboardPage(QWidget *parent)
     : QWidget(parent)
 {
-    setStyleSheet("background:#F7F3EF;");
+    // ===== 创建滚动区域 =====
+    QScrollArea *scrollArea = new QScrollArea(this);
+    scrollArea->setWidgetResizable(true);
+    scrollArea->setFrameShape(QFrame::NoFrame);
+    scrollArea->setStyleSheet("background:transparent;");
 
-    QVBoxLayout *mainLayout = new QVBoxLayout(this);
-    mainLayout->setContentsMargins(16,16,16,16);
+    // 原 this 上的内容改为放到 container 里
+    QWidget *container = new QWidget();
+    container->setStyleSheet("background:#F7F3EF;");
+
+    // 所有原有布局和控件都添加到 container 上
+    QVBoxLayout *mainLayout = new QVBoxLayout(container);
+    mainLayout->setContentsMargins(16, 16, 16, 16);
     mainLayout->setSpacing(12);
 
     // ===== 1. 顶部学期控制栏 =====
@@ -56,6 +66,14 @@ DashboardPage::DashboardPage(QWidget *parent)
 
     // ===== 3. 底部统计卡片 =====
     mainLayout->addWidget(createBottomStats());
+
+    // 将 container 设置为滚动区域的内容
+    scrollArea->setWidget(container);
+
+    // DashboardPage 自身的布局只放 scrollArea
+    QVBoxLayout *outerLayout = new QVBoxLayout(this);
+    outerLayout->setContentsMargins(0, 0, 0, 0);
+    outerLayout->addWidget(scrollArea);
 
     initGrid();
     loadCourses();
