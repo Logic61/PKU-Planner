@@ -40,6 +40,10 @@ set(PROJECT_SOURCES
     pages/todopage.h
     components/coursecellwidget.cpp
     components/coursecellwidget.h
+    components/ddlpreviewwidget.cpp
+    components/ddlpreviewwidget.h
+    components/taskcardwidget.cpp
+    components/taskcardwidget.h
     dialogs/courseeditdialog.cpp
     dialogs/courseeditdialog.h
     dialogs/courseactiondialog.cpp

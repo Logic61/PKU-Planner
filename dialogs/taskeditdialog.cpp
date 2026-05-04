@@ -1,4 +1,4 @@
-#include "taskeditdialog.h"
+﻿#include "taskeditdialog.h"
 #include "../models/datamanager.h"
 #include <QVBoxLayout>
 #include <QFormLayout>
@@ -9,6 +9,7 @@
 #include <QDialogButtonBox>
 #include <QFrame>
 #include <QCalendarWidget>
+#include <QCheckBox>
 
 TaskEditDialog::TaskEditDialog(QWidget *parent, const QString &defaultCourse)
     : QDialog(parent)
@@ -64,6 +65,7 @@ TaskEditDialog::TaskEditDialog(QWidget *parent, const QString &defaultCourse)
     hoursSpin = new QSpinBox();
     hoursSpin->setRange(1, 100);
     hoursSpin->setValue(2);
+    completedCheck = new QCheckBox("标记为已完成");
     courseCombo = new QComboBox();
     courseCombo->addItem("请选择课程");
 
@@ -73,7 +75,6 @@ TaskEditDialog::TaskEditDialog(QWidget *parent, const QString &defaultCourse)
         }
     }
 
-    // 设置默认课程
     if (!defaultCourse.isEmpty()) {
         int index = courseCombo->findText(defaultCourse);
         if (index != -1) {
@@ -85,6 +86,7 @@ TaskEditDialog::TaskEditDialog(QWidget *parent, const QString &defaultCourse)
     formLayout->addRow("截止时间:", deadlineEdit);
     formLayout->addRow("优先级:", priorityCombo);
     formLayout->addRow("预计小时:", hoursSpin);
+    formLayout->addRow("完成状态:", completedCheck);
     formLayout->addRow("所属课程:", courseCombo);
 
     mainLayout->addLayout(formLayout);
@@ -92,10 +94,10 @@ TaskEditDialog::TaskEditDialog(QWidget *parent, const QString &defaultCourse)
     QDialogButtonBox *buttons = new QDialogButtonBox(
         QDialogButtonBox::Ok | QDialogButtonBox::Cancel
     );
-    
+
     connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    
+
     mainLayout->addWidget(buttons);
 
     setStyleSheet(R"(
@@ -126,6 +128,10 @@ TaskEditDialog::TaskEditDialog(QWidget *parent, const QString &defaultCourse)
             padding: 8px;
             color: #222;
         }
+        QCheckBox {
+            color: #222;
+            padding: 4px 0;
+        }
         QPushButton {
             background: #8B1E2D;
             color: white;
@@ -154,6 +160,10 @@ int TaskEditDialog::getEstimatedHours() const {
     return hoursSpin->value();
 }
 
+bool TaskEditDialog::getCompleted() const {
+    return completedCheck->isChecked();
+}
+
 QString TaskEditDialog::getCourseName() const {
     return courseCombo->currentText();
 }
@@ -162,6 +172,7 @@ void TaskEditDialog::setTaskData(const Task &task) {
     titleEdit->setText(task.title);
     deadlineEdit->setDateTime(task.deadline);
     priorityCombo->setCurrentIndex(task.priority);
+    completedCheck->setChecked(task.completed);
 
     const int index = courseCombo->findText(task.course);
     if (index != -1) {

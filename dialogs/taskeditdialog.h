@@ -6,6 +6,7 @@
 #include <QSpinBox>
 #include <QDateTimeEdit>
 #include <QLineEdit>
+#include <QCheckBox>
 
 #include "../models/task.h"
 
@@ -22,6 +23,7 @@ public:
     QDateTime getDeadline() const;
     int getPriority() const;
     int getEstimatedHours() const;
+    bool getCompleted() const;
     QString getCourseName() const;
     void setTaskData(const Task &task);
 
@@ -31,6 +33,7 @@ private:
     QDateTimeEdit *deadlineEdit;
     QComboBox *priorityCombo;
     QSpinBox *hoursSpin;
+    QCheckBox *completedCheck;
 };
 
 #endif

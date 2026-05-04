@@ -4,11 +4,14 @@
 #include <QToolTip>
 #include <QTimer>
 #include <QEnterEvent>
+#include "ddlpreviewwidget.h"
 #include <QMouseEvent>
 #include <QDialog>
 #include <QFormLayout>
 #include <QLineEdit>
 #include <QDialogButtonBox>
+#include <QApplication>
+#include <QCursor>
 
 CourseCellWidget::CourseCellWidget(int row, int col, QWidget *parent)
     : QFrame(parent), m_row(row), m_col(col), m_index(-1)
@@ -44,6 +47,40 @@ CourseCellWidget::CourseCellWidget(int row, int col, QWidget *parent)
 
     layout->addWidget(title);
     layout->addWidget(info);
+
+    m_preview = nullptr;
+    m_showTimer = new QTimer(this);
+    m_showTimer->setSingleShot(true);
+    connect(m_showTimer, &QTimer::timeout, this, [this]() {
+        if (m_showToken != m_hoverSerial) {
+            return;
+        }
+        if (title->text().isEmpty()) {
+            return;
+        }
+
+        if (m_preview) {
+            m_preview->showNear(QCursor::pos());
+            m_preview->raise();
+            m_preview->activateWindow();
+        } else {
+            m_preview = new DDLPreviewWidget(title->text());
+            m_preview->showNear(QCursor::pos());
+        }
+    });
+
+    m_hideTimer = new QTimer(this);
+    m_hideTimer->setSingleShot(true);
+    connect(m_hideTimer, &QTimer::timeout, this, [this]() {
+        if (!m_preview || !m_preview->isVisible()) {
+            return;
+        }
+        QWidget *hoverWidget = QApplication::widgetAt(QCursor::pos());
+        if (hoverWidget && (hoverWidget == m_preview || m_preview->isAncestorOf(hoverWidget))) {
+            return;
+        }
+        m_preview->hide();
+    });
 }
 
 void CourseCellWidget::setCourse(QString name, QString location, QString teacher, int index, int daysLeft)
@@ -95,18 +132,27 @@ void CourseCellWidget::setCourse(QString name, QString location, QString teacher
 
 void CourseCellWidget::enterEvent(QEnterEvent *)
 {
-    QTimer::singleShot(300, this, [this]() {
-        if(!title->text().isEmpty())
-        {
-            QToolTip::showText(cursor().pos(),
-                title->text() + "\n信息: " + info->text());
-        }
-    });
+    ++m_hoverSerial;
+    m_showToken = m_hoverSerial;
+    if (m_hideTimer) {
+        m_hideTimer->stop();
+    }
+    if (m_showTimer) {
+        m_showTimer->stop();
+        m_showTimer->start(220);
+    }
 }
 
 void CourseCellWidget::leaveEvent(QEvent *)
 {
     QToolTip::hideText();
+    ++m_hoverSerial;
+    if (m_showTimer) {
+        m_showTimer->stop();
+    }
+    if (m_hideTimer) {
+        m_hideTimer->start(120);
+    }
 }
 
 void CourseCellWidget::mouseDoubleClickEvent(QMouseEvent *)

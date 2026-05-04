@@ -2,6 +2,9 @@
 
 #include <QJsonParseError>
 #include <QDateTime>
+#include <QCoreApplication>
+#include <QDir>
+#include <QDebug>
 
 DataManager& DataManager::instance()
 {
@@ -13,6 +16,7 @@ DataManager::DataManager() : QObject(nullptr)
 {
     // 在构造函数中加载数据
     qDebug() << "[DataManager] Constructor called, loading data";
+    m_storageDir = QCoreApplication::instance() ? QCoreApplication::applicationDirPath() : QDir::currentPath();
     load();
     qDebug() << "[DataManager] Data loaded, courses:" << m_courses.size() << "tasks:" << m_tasks.size();
 }
@@ -74,7 +78,10 @@ QList<Task> DataManager::tasks() const
 
 void DataManager::addTask(const Task& t)
 {
+    qDebug() << "[DataManager::addTask] Adding task:" << t.title << "with deadline:" << t.deadline.toString("yyyy-MM-dd hh:mm:ss");
     m_tasks.append(t);
+    qDebug() << "[DataManager::addTask] Task count now:" << m_tasks.size();
+    qDebug() << "[DataManager::addTask] Emitting tasksChanged signal";
     emit tasksChanged();
     saveTasks();
 }
@@ -177,12 +184,16 @@ bool DataManager::loadTasks()
     
     for (const auto& item : arr) {
         if (item.isObject()) {
-            // 假设Task有fromJson方法，如果没有需要添加
             Task task;
             QJsonObject obj = item.toObject();
             task.course = obj["course"].toString();
             task.title = obj["title"].toString();
-            task.deadline = QDateTime::fromString(obj["deadline"].toString(), Qt::ISODate);
+            const QString deadlineStr = obj["deadline"].toString();
+            // 使用显式格式字符串解析 ISO 8601 格式
+            task.deadline = QDateTime::fromString(deadlineStr, "yyyy-MM-ddThh:mm:ss");
+            if (!task.deadline.isValid()) {
+                qWarning() << "Failed to parse deadline:" << deadlineStr;
+            }
             task.priority = obj["priority"].toInt();
             task.completed = obj["completed"].toBool();
             m_tasks.append(task);
@@ -224,53 +235,73 @@ bool DataManager::saveTasks()
 
 bool DataManager::loadFromFile(const QString& filename, QJsonDocument& doc)
 {
-    QFile file(filename);
-    
-    if (!file.exists()) {
-        qWarning() << "文件不存在:" << filename;
+    QStringList candidates;
+    candidates << filename;
+    candidates << QDir::current().absoluteFilePath(filename);
+    const QString appDir = m_storageDir.isEmpty()
+        ? (QCoreApplication::instance() ? QCoreApplication::applicationDirPath() : QDir::currentPath())
+        : m_storageDir;
+    candidates << QDir(appDir).absoluteFilePath(filename);
+    candidates << QDir(appDir).absoluteFilePath("../" + filename);
+
+    QFile file;
+    QString usedPath;
+    for (const QString &p : candidates) {
+        file.setFileName(p);
+        if (file.exists()) {
+            usedPath = p;
+            break;
+        }
+    }
+
+    if (usedPath.isEmpty()) {
+        qWarning() << "文件不存在（尝试路径）:" << candidates;
         return false;
     }
-    
+
     if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "无法打开文件:" << filename;
+        qWarning() << "无法打开文件:" << usedPath;
         return false;
     }
-    
+
     QByteArray data = file.readAll();
     file.close();
-    
+
     QJsonParseError error;
     doc = QJsonDocument::fromJson(data, &error);
-    
+
     if (error.error != QJsonParseError::NoError || doc.isNull()) {
-        qWarning() << "JSON解析错误:" << error.errorString() << "在文件:" << filename;
+        qWarning() << "JSON解析错误:" << error.errorString() << "在文件:" << usedPath;
         return false;
     }
-    
+
+    qDebug() << "成功从文件加载:" << usedPath;
     return true;
 }
 
 bool DataManager::saveToFile(const QString& filename, const QJsonDocument& doc)
 {
-    // 先保存到临时文件，然后重命名，避免写入失败导致数据丢失
-    QString tempFile = filename + ".tmp";
-    QString backupFile = filename + ".bak";
-    
+    // 优先将数据写到应用程序目录下，确保运行时读取/写入路径一致
+    const QString appDir = m_storageDir.isEmpty() ? QDir::currentPath() : m_storageDir;
+    QString target = QDir(appDir).absoluteFilePath(filename);
+    QString tempFile = target + ".tmp";
+    QString backupFile = target + ".bak";
+
     // 1. 如果存在原文件，先备份
-    if (QFile::exists(filename)) {
+    if (QFile::exists(target)) {
         if (QFile::exists(backupFile)) {
             QFile::remove(backupFile);
         }
-        QFile::copy(filename, backupFile);
+        QFile::copy(target, backupFile);
     }
-    
+
     // 2. 写入临时文件
     QFile file(tempFile);
     if (!file.open(QIODevice::WriteOnly)) {
         qWarning() << "无法创建临时文件:" << tempFile;
         return false;
     }
-    
+
     qint64 bytesWritten = file.write(doc.toJson());
     if (!file.flush()) {
         qWarning() << "刷新文件失败:" << tempFile;
@@ -279,24 +310,24 @@ bool DataManager::saveToFile(const QString& filename, const QJsonDocument& doc)
         return false;
     }
     file.close();
-    
+
     if (bytesWritten == -1) {
         qWarning() << "写入文件失败:" << tempFile;
         QFile::remove(tempFile);
         return false;
     }
-    
+
     // 3. 将临时文件重命名为正式文件
-    if (QFile::exists(filename)) {
-        QFile::remove(filename);
+    if (QFile::exists(target)) {
+        QFile::remove(target);
     }
-    
-    if (!QFile::rename(tempFile, filename)) {
-        qWarning() << "重命名文件失败:" << tempFile << "->" << filename;
+
+    if (!QFile::rename(tempFile, target)) {
+        qWarning() << "重命名文件失败:" << tempFile << "->" << target;
         return false;
     }
-    
-    qDebug() << "成功保存文件:" << filename;
+
+    qDebug() << "成功保存文件:" << target;
     return true;
 }
 

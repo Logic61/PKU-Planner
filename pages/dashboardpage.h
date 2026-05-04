@@ -46,8 +46,12 @@ private:
     QWidget* createTopBar();
     QWidget* createBottomStats();
     QWidget* createRightPanel();
+    void updateBottomStats();
     
     QVBoxLayout *ddlLayout;
+    QLabel *todayCourseValue = nullptr;
+    QLabel *todayDdlValue = nullptr;
+    QLabel *weekDdlValue = nullptr;
     
     void updateDDLWidget();
     void updateWeekInfo();

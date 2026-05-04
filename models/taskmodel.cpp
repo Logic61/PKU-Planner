@@ -5,6 +5,7 @@
 #include <QBrush> // 如果你要返回复杂的背景刷
 #include <QDateTime>
 #include <QFont>
+#include <QPainter>
 #include <algorithm>
 
 namespace {
@@ -82,8 +83,27 @@ QVariant TaskModel::data(const QModelIndex &index, int role) const
             if(t.isOverdue()) return "已逾期";
             return QString("%1 天").arg(t.daysLeft());
         case 4:
+            // keep short text but we render a colored badge via DecorationRole
             return t.priority == 2 ? "高" : (t.priority == 1 ? "中" : "低");
         }
+    }
+
+    // small colored badge for priority
+    if (role == Qt::DecorationRole && index.column() == 4) {
+        QPixmap pix(14,14);
+        pix.fill(Qt::transparent);
+        QPainter p(&pix);
+        p.setRenderHint(QPainter::Antialiasing);
+        QColor c = (t.priority == 2) ? QColor("#D32F2F") : (t.priority == 1) ? QColor("#FFA726") : QColor("#90CAF9");
+        p.setBrush(c);
+        p.setPen(Qt::NoPen);
+        p.drawRoundedRect(QRectF(0,0,14,14), 4, 4);
+        p.end();
+        return pix;
+    }
+
+    if (role == Qt::TextAlignmentRole && index.column() == 4) {
+        return Qt::AlignCenter;
     }
 
     if (role == Qt::ForegroundRole && t.completed) {

@@ -9,6 +9,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QDebug>
+#include <QString>
 #include "course.h"
 #include "task.h"
 
@@ -53,6 +54,7 @@ private:
 
     QList<Course> m_courses;
     QList<Task> m_tasks;
+    QString m_storageDir;
 };
 
 #endif // DATAMANAGER_H

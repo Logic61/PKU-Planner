@@ -5,6 +5,8 @@
 
 class QLabel;
 class QMouseEvent;
+class QTimer;
+class DDLPreviewWidget;
 
 class CourseCellWidget : public QFrame
 {
@@ -30,6 +32,11 @@ private:
     int m_row;
     int m_col;
     int m_index = -1;
+    DDLPreviewWidget *m_preview = nullptr;
+    QTimer *m_showTimer = nullptr;
+    QTimer *m_hideTimer = nullptr;
+    int m_hoverSerial = 0;
+    int m_showToken = 0;
 };
 
 #endif

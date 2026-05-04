@@ -9,9 +9,12 @@
 #include <QProgressBar>
 #include <QPushButton>
 #include <QCheckBox>
+#include <QMessageBox>
 #include <QTimer>
 #include <QDateTime>
 #include <QScrollArea>
+#include <QApplication>
+#include <QDebug>
 #include <algorithm>
 #include <vector>
 #include <utility>
@@ -88,6 +91,8 @@ DashboardPage::DashboardPage(QWidget *parent)
     // Connect signals for reactive updates
     connect(&DataManager::instance(), &DataManager::coursesChanged, this, &DashboardPage::renderCourses);
     connect(&DataManager::instance(), &DataManager::tasksChanged, this, &DashboardPage::renderCourses);
+    connect(&DataManager::instance(), &DataManager::coursesChanged, this, &DashboardPage::updateBottomStats);
+    connect(&DataManager::instance(), &DataManager::tasksChanged, this, &DashboardPage::updateBottomStats);
 }
 
 QWidget* DashboardPage::createTopBar()
@@ -203,27 +208,97 @@ QWidget* DashboardPage::createBottomStats()
         cl->addWidget(num);
         cl->addWidget(title);
 
-        if(t == "当前时间")
+        if(t == "今日课程")
+        {
+            todayCourseValue = num;
+        }
+        else if(t == "今日DDL")
+        {
+            todayDdlValue = num;
+        }
+        else if(t == "本周DDL")
+        {
+            weekDdlValue = num;
+        }
+        else if(t == "当前时间")
         {
             timeLabel = num;
             timeLabel->setStyleSheet("font-size:14px;font-weight:bold;color:#8B1E2D;");
 
             QTimer *timer = new QTimer(this);
             connect(timer,&QTimer::timeout,this,[=](){
-                timeLabel->setText(
-                    QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")
-                );
+                timeLabel->setText(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
+                updateBottomStats();
             });
             timer->start(1000);
-            timeLabel->setText(
-                QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss")
-            );
+            timeLabel->setText(QDateTime::currentDateTime().toString("yyyy-MM-dd hh:mm:ss"));
         }
 
         layout->addWidget(card);
     }
 
+    updateBottomStats();
+
     return widget;
+}
+
+void DashboardPage::updateBottomStats()
+{
+    qDebug() << "[DashboardPage::updateBottomStats] Called";
+    const QList<Course> courses = DataManager::instance().courses();
+    const QList<Task> tasks = DataManager::instance().tasks();
+    const QDate today = QDate::currentDate();
+    const int currentWeekday = today.dayOfWeek();
+    
+    int currentYear = 0;
+    const int currentWeek = today.weekNumber(&currentYear);
+
+    int todayCourseCount = 0;
+    for (const Course &course : courses) {
+        if (course.day != currentWeekday) {
+            continue;
+        }
+        if (course.weekType == 1 && currentWeek % 2 == 0) {
+            continue;
+        }
+        if (course.weekType == 2 && currentWeek % 2 == 1) {
+            continue;
+        }
+        ++todayCourseCount;
+    }
+
+    int todayDdlCount = 0;
+    int weekDdlCount = 0;
+    for (const Task &task : tasks) {
+        qDebug() << "[updateBottomStats] Task:" << task.title << "completed:" << task.completed << "deadline valid:" << task.deadline.isValid();
+        if (task.completed || !task.deadline.isValid()) {
+            continue;
+        }
+
+        const QDate deadlineDate = task.deadline.date();
+        if (deadlineDate == today) {
+            ++todayDdlCount;
+        }
+
+        int deadlineYear = 0;
+        const int deadlineWeek = deadlineDate.weekNumber(&deadlineYear);
+        if (currentWeek == deadlineWeek && currentYear == deadlineYear) {
+            ++weekDdlCount;
+        }
+    }
+    
+    qDebug() << "[updateBottomStats] Results - today courses:" << todayCourseCount 
+             << "today DDL:" << todayDdlCount << "week DDL:" << weekDdlCount;
+
+    if (todayCourseValue) {
+        todayCourseValue->setText(QString::number(todayCourseCount));
+    }
+    if (todayDdlValue) {
+        todayDdlValue->setText(QString::number(todayDdlCount));
+    }
+    if (weekDdlValue) {
+        weekDdlValue->setText(QString::number(weekDdlCount));
+    }
 }
 
 QWidget* DashboardPage::createRightPanel()
@@ -290,6 +365,10 @@ void DashboardPage::updateDDLWidget()
         if (a.deadline != b.deadline) {
             return a.deadline < b.deadline;
         }
+        // If deadlines are the same, sort by priority (higher priority first)
+        if (a.priority != b.priority) {
+            return a.priority > b.priority;
+        }
         return a.title < b.title;
     });
 
@@ -310,7 +389,7 @@ void DashboardPage::updateDDLWidget()
             }
         )");
         QVBoxLayout *vl = new QVBoxLayout(itemFrame);
-        vl->setContentsMargins(10,10,10,10);
+        vl->setContentsMargins(12,12,12,12);
         vl->setSpacing(8);
 
         QHBoxLayout *topRow = new QHBoxLayout;
@@ -363,13 +442,15 @@ void DashboardPage::updateDDLWidget()
         QPushButton *deleteBtn = new QPushButton("删除");
         for (QPushButton *btn : {editBtn, deleteBtn}) {
             btn->setCursor(Qt::PointingHandCursor);
+            btn->setMinimumHeight(30);
             btn->setStyleSheet(R"(
                 QPushButton {
                     background: transparent;
                     color: #8B1E2D;
                     border: 1px solid #E2C9CD;
                     border-radius: 8px;
-                    padding: 4px 10px;
+                    padding: 6px 12px;
+                    font-weight:600;
                 }
                 QPushButton:hover {
                     background: #8B1E2D;
@@ -388,7 +469,9 @@ void DashboardPage::updateDDLWidget()
         vl->addLayout(metaRow);
 
         connect(doneBox, &QCheckBox::toggled, this, [taskIndex](bool checked) {
-            DataManager::instance().markTaskCompleted(taskIndex, checked);
+            QTimer::singleShot(0, qApp, [taskIndex, checked]() {
+                DataManager::instance().markTaskCompleted(taskIndex, checked);
+            });
         });
 
         connect(editBtn, &QPushButton::clicked, this, [this, taskIndex]() {
@@ -413,7 +496,9 @@ void DashboardPage::updateDDLWidget()
         });
 
         connect(deleteBtn, &QPushButton::clicked, this, [taskIndex]() {
-            DataManager::instance().deleteTask(taskIndex);
+            QTimer::singleShot(0, qApp, [taskIndex]() {
+                DataManager::instance().deleteTask(taskIndex);
+            });
         });
 
         if (task.completed) {
@@ -563,7 +648,81 @@ void DashboardPage::createCourse(int row, int col)
         c.weekType = dialog.getWeekType();
         c.day = col;
 
-        DataManager::instance().addCourse(c);
+        // 检查是否已存在同名课程
+        QList<Course> existingCourses = DataManager::instance().courses();
+        int foundIndex = -1;
+        for (int i = 0; i < existingCourses.size(); ++i) {
+            if (existingCourses[i].name == c.name) {
+                foundIndex = i;
+                break;
+            }
+        }
+
+        if (foundIndex < 0) {
+            DataManager::instance().addCourse(c);
+        } else {
+            // 已存在：尝试自动合并更完整的信息
+            Course original = existingCourses[foundIndex];
+            Course merged = original;
+
+            // 对字符串字段，优先保留更完整（非空）的值
+            if (merged.teacher.isEmpty() && !c.teacher.isEmpty()) merged.teacher = c.teacher;
+            if (merged.location.isEmpty() && !c.location.isEmpty()) merged.location = c.location;
+            if (merged.examTime.isEmpty() && !c.examTime.isEmpty()) merged.examTime = c.examTime;
+
+            // 时间/节次字段，0认为未设置
+            if (merged.day == 0 && c.day != 0) merged.day = c.day;
+            if (merged.startPeriod == 0 && c.startPeriod != 0) merged.startPeriod = c.startPeriod;
+            if (merged.endPeriod == 0 && c.endPeriod != 0) merged.endPeriod = c.endPeriod;
+            if (merged.weekType == 0 && c.weekType != 0) merged.weekType = c.weekType;
+
+            // 检查是否存在冲突（两个非空且不相同）
+            bool conflict = false;
+            if (!original.teacher.isEmpty() && !c.teacher.isEmpty() && original.teacher != c.teacher) conflict = true;
+            if (!original.location.isEmpty() && !c.location.isEmpty() && original.location != c.location) conflict = true;
+            if (!original.examTime.isEmpty() && !c.examTime.isEmpty() && original.examTime != c.examTime) conflict = true;
+            if (original.day != 0 && c.day != 0 && original.day != c.day) conflict = true;
+            if (original.startPeriod != 0 && c.startPeriod != 0 && original.startPeriod != c.startPeriod) conflict = true;
+            if (original.endPeriod != 0 && c.endPeriod != 0 && original.endPeriod != c.endPeriod) conflict = true;
+            if (original.weekType != 0 && c.weekType != 0 && original.weekType != c.weekType) conflict = true;
+
+            if (!conflict) {
+                // 无冲突：直接更新为合并结果
+                DataManager::instance().updateCourse(foundIndex, merged);
+            } else {
+                // 有冲突：提示用户选择
+                QMessageBox msg(this);
+                msg.setWindowTitle("课程冲突");
+                msg.setText(QString("已存在课程“%1”，选择处理方式：").arg(c.name));
+                QPushButton *keepBtn = msg.addButton("保留已有信息", QMessageBox::AcceptRole);
+                QPushButton *overwriteBtn = msg.addButton("使用新信息覆盖", QMessageBox::DestructiveRole);
+                QPushButton *manualBtn = msg.addButton("手动合并并编辑", QMessageBox::ActionRole);
+                msg.setIcon(QMessageBox::Question);
+                msg.exec();
+
+                if (msg.clickedButton() == keepBtn) {
+                    // 保留已有，无操作
+                } else if (msg.clickedButton() == overwriteBtn) {
+                    DataManager::instance().updateCourse(foundIndex, c);
+                } else if (msg.clickedButton() == manualBtn) {
+                    CourseEditDialog editDialog(original.startPeriod, original.endPeriod, this);
+                    editDialog.setWindowTitle("合并课程信息");
+                    // 预填充为 merged（已有更完整的值）
+                    editDialog.setCourseData(merged.name, merged.teacher, merged.location, merged.examTime, merged.startPeriod, merged.endPeriod, merged.weekType);
+                    if (editDialog.exec() == QDialog::Accepted) {
+                        Course finalC = merged;
+                        finalC.name = editDialog.getName();
+                        finalC.teacher = editDialog.getTeacher();
+                        finalC.location = editDialog.getLocation();
+                        finalC.examTime = editDialog.getExamTime();
+                        finalC.startPeriod = editDialog.getStart();
+                        finalC.endPeriod = editDialog.getEnd();
+                        finalC.weekType = editDialog.getWeekType();
+                        DataManager::instance().updateCourse(foundIndex, finalC);
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -595,7 +754,9 @@ void DashboardPage::editCourse(int index)
             DataManager::instance().updateCourse(index, c);
         }
     } else if (actionDialog.deleteSelected()) {
-        DataManager::instance().deleteCourse(index);
+        QTimer::singleShot(0, qApp, [index]() {
+            DataManager::instance().deleteCourse(index);
+        });
     } else if (actionDialog.ddlSelected()) {
         TaskEditDialog taskDialog(this, c.name);
         if (taskDialog.exec() == QDialog::Accepted) {

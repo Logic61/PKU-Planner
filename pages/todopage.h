@@ -5,8 +5,9 @@
 #include <QComboBox>
 #include <QLineEdit>
 
-class QTableView;
-class TaskModel;
+class QScrollArea;
+class QVBoxLayout;
+class QLabel;
 
 class TodoPage : public QWidget
 {
@@ -16,18 +17,22 @@ public:
     explicit TodoPage(QWidget *parent = nullptr);
 
 private:
-    TaskModel *model;
-    QTableView *table;
-    QComboBox *courseFilter;
-    QComboBox *timeFilter;
-    QComboBox *statusFilter;
-    QLineEdit *searchEdit;
+    QComboBox *courseFilter = nullptr;
+    QComboBox *timeFilter = nullptr;
+    QComboBox *statusFilter = nullptr;
+    QLineEdit *searchEdit = nullptr;
+    QLabel *summaryLabel = nullptr;
+    QScrollArea *scrollArea = nullptr;
+    QWidget *boardWidget = nullptr;
+    QVBoxLayout *boardLayout = nullptr;
 
     QWidget* createFilterBar();
+    QWidget* createSectionHeader(const QString &title, int count, const QString &accent);
     void refreshCourseFilter();
     void refreshTasks();
     void applyFilter();
-    void editSelectedTask();
+    void rebuildBoard();
+    void editTaskByIndex(int sourceIndex);
 };
 
 #endif
