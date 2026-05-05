@@ -20,11 +20,16 @@ public:
 signals:
     void createCourseRequested(int row, int col);
     void editCourseRequested(int index);
+    void editCourseDirectlyRequested(int index);
+    void deleteCourseRequested(int index);
+    void addDDLRequested(const QString &courseName);
+    void navigateToTodoPageRequested();
 
 protected:
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;
     void mouseDoubleClickEvent(QMouseEvent *event) override;
+    void contextMenuEvent(QContextMenuEvent *event) override;
 
 private:
     QLabel *title;
@@ -37,6 +42,7 @@ private:
     QTimer *m_hideTimer = nullptr;
     int m_hoverSerial = 0;
     int m_showToken = 0;
+    QString m_courseName;
 };
 
 #endif

@@ -25,6 +25,10 @@ public:
 public slots:
     void createCourse(int row, int col);
     void editCourse(int index); // for editing/deleting
+    void editCourseDirect(int index); // Direct edit without ActionDialog
+
+signals:
+    void navigateToTodoPageRequested();
 
 private:
     // std::vector<Course> courses; Removed and handled by DataManager

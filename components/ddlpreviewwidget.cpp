@@ -95,7 +95,7 @@ void DDLPreviewWidget::buildUI(const QString &courseName)
     l->addWidget(open, 0, Qt::AlignRight);
 
     connect(open, &QPushButton::clicked, this, [this](){
-        // simply hide popup; navigation handled by app's page switch elsewhere
+        emit requestNavigateToTodoPage();
         this->hide();
     });
 }

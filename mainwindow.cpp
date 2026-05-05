@@ -64,6 +64,17 @@ void MainWindow::initPages()
     stack->removeWidget(oldPage1);
     delete oldPage0;
     delete oldPage1;
-    stack->insertWidget(0, new DashboardPage);
-    stack->insertWidget(1, new TodoPage);
+    dashboardPage = new DashboardPage;
+    todoPage = new TodoPage;
+    stack->insertWidget(0, dashboardPage);
+    stack->insertWidget(1, todoPage);
+    
+    // Connect navigation signal from DashboardPage
+    connect(dashboardPage, &DashboardPage::navigateToTodoPageRequested,
+            this, &MainWindow::onNavigateToTodoPage);
+}
+
+void MainWindow::onNavigateToTodoPage()
+{
+    stack->setCurrentIndex(1);
 }

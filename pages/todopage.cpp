@@ -204,39 +204,100 @@ QWidget* TodoPage::createFilterBar()
     statusFilter = new QComboBox;
     statusFilter->addItems({"全部状态", "未完成", "已完成"});
 
-    QPushButton *refreshButton = new QPushButton("刷新");
+    QPushButton *refreshButton = new QPushButton("🔄 刷新");
     refreshButton->setStyleSheet(R"(
         QPushButton {
-            background:#8B1E2D;
-            color:white;
-            border:none;
-            border-radius:8px;
-            padding:8px 14px;
-            font-weight:600;
+            background: linear-gradient(135deg, #8B1E2D, #B44B5D);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            padding: 10px 20px;
+            font-weight: 700;
+            font-size: 13px;
         }
-        QPushButton:hover { background:#7A1C2C; }
+        QPushButton:hover {
+            background: linear-gradient(135deg, #7A1C2C, #A63D4F);
+            box-shadow: 0 4px 12px rgba(139, 30, 45, 0.3);
+        }
+        QPushButton:pressed {
+            background: linear-gradient(135deg, #6A1620, #963547);
+        }
     )");
 
     for (QComboBox *box : {courseFilter, timeFilter, statusFilter}) {
         box->setStyleSheet(R"(
             QComboBox {
-                border: 1px solid #E2D7D1;
-                border-radius: 10px;
-                padding: 8px 12px;
-                background: #FAFAFA;
+                border: 2px solid #E8D9DB;
+                border-radius: 12px;
+                padding: 8px 12px 8px 14px;
+                background: white;
                 color: #222;
+                font-size: 13px;
+                font-weight: 600;
+                selection-background-color: #8B1E2D;
             }
-            QComboBox::drop-down { border: none; width: 20px; }
+            QComboBox:hover {
+                border: 2px solid #8B1E2D;
+                background: #FAFAFA;
+            }
+            QComboBox:focus {
+                border: 2px solid #8B1E2D;
+                background: white;
+                outline: none;
+            }
+            QComboBox::drop-down {
+                border: none;
+                width: 24px;
+                subcontrol-position: right;
+                subcontrol-origin: padding;
+            }
+            QComboBox::down-arrow {
+                image: url(:/icons/dropdown_arrow.png);
+                width: 10px;
+                height: 10px;
+            }
+            QComboBox QAbstractItemView {
+                border: 1px solid #E8D9DB;
+                background-color: white;
+                color: #222;
+                selection-background-color: #8B1E2D;
+                selection-color: white;
+                border-radius: 8px;
+                outline: none;
+            }
+            QComboBox QAbstractItemView::item {
+                padding: 6px 12px;
+                height: 30px;
+            }
+            QComboBox QAbstractItemView::item:hover {
+                background-color: #FDECEC;
+            }
+            QComboBox QAbstractItemView::item:selected {
+                background-color: #8B1E2D;
+                color: white;
+            }
         )");
     }
 
     searchEdit->setStyleSheet(R"(
         QLineEdit {
-            border: 1px solid #E2D7D1;
-            border-radius: 10px;
-            padding: 10px 12px;
-            background: #FAFAFA;
+            border: 2px solid #E8D9DB;
+            border-radius: 12px;
+            padding: 10px 14px;
+            background: white;
             color: #222;
+            font-size: 13px;
+            font-weight: 600;
+            selection-background-color: #8B1E2D;
+        }
+        QLineEdit:hover {
+            border: 2px solid #8B1E2D;
+            background: #FAFAFA;
+        }
+        QLineEdit:focus {
+            border: 2px solid #8B1E2D;
+            background: white;
+            outline: none;
         }
     )");
 

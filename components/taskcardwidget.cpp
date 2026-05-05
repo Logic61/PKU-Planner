@@ -51,10 +51,6 @@ TaskCardWidget::TaskCardWidget(const Task &task, QWidget *parent)
     root->setContentsMargins(14, 12, 14, 12);
     root->setSpacing(10);
 
-    QHBoxLayout *topRow = new QHBoxLayout;
-    topRow->setContentsMargins(0, 0, 0, 0);
-    topRow->setSpacing(8);
-
     doneBox = new QCheckBox;
     doneBox->setChecked(m_task.completed);
     doneBox->setCursor(Qt::PointingHandCursor);
@@ -79,14 +75,13 @@ TaskCardWidget::TaskCardWidget(const Task &task, QWidget *parent)
     titleLabel->setWordWrap(true);
     titleLabel->setStyleSheet("font-size:15px; font-weight:700; color:#222;");
 
+    // First row: title and done checkbox
     QHBoxLayout *titleRow = new QHBoxLayout;
     titleRow->setContentsMargins(0, 0, 0, 0);
     titleRow->setSpacing(8);
-    titleRow->addWidget(courseTag, 0, Qt::AlignLeft);
-    titleRow->addStretch();
+    titleRow->addWidget(titleLabel, 1);
     titleRow->addWidget(doneBox, 0, Qt::AlignRight);
-
-    topRow->addLayout(titleRow, 1);
+    root->addLayout(titleRow);
 
     priorityBadge = new QLabel;
     priorityBadge->setAlignment(Qt::AlignCenter);
@@ -104,6 +99,7 @@ TaskCardWidget::TaskCardWidget(const Task &task, QWidget *parent)
     metaRow->setContentsMargins(0, 0, 0, 0);
     metaRow->setSpacing(8);
     metaRow->addWidget(deadlineLabel);
+    metaRow->addWidget(courseTag);
     metaRow->addWidget(priorityBadge);
     metaRow->addStretch();
     metaRow->addWidget(statusBadge);
@@ -125,7 +121,6 @@ TaskCardWidget::TaskCardWidget(const Task &task, QWidget *parent)
     actionRow->addWidget(deleteBtn);
     actionRow->addStretch();
 
-    root->addWidget(titleLabel);
     root->addLayout(metaRow);
     root->addLayout(actionRow);
 

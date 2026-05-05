@@ -618,6 +618,29 @@ void DashboardPage::renderCourses()
             
             connect(cell, &CourseCellWidget::editCourseRequested,
                     this, &DashboardPage::editCourse);
+            connect(cell, &CourseCellWidget::editCourseDirectlyRequested,
+                    this, &DashboardPage::editCourseDirect);
+            connect(cell, &CourseCellWidget::navigateToTodoPageRequested,
+                    this, &DashboardPage::navigateToTodoPageRequested);
+            connect(cell, &CourseCellWidget::deleteCourseRequested,
+                    this, [this](int idx) { 
+                        if (idx >= 0) {
+                            DataManager::instance().deleteCourse(idx);
+                        }
+                    });
+            connect(cell, &CourseCellWidget::addDDLRequested,
+                    this, [this](const QString &courseName) {
+                        TaskEditDialog taskDialog(this, courseName);
+                        if (taskDialog.exec() == QDialog::Accepted) {
+                            Task newTask;
+                            newTask.course = taskDialog.getCourseName();
+                            newTask.title = taskDialog.getTitle();
+                            newTask.deadline = taskDialog.getDeadline();
+                            newTask.priority = taskDialog.getPriority();
+                            newTask.completed = false;
+                            DataManager::instance().addTask(newTask);
+                        }
+                    });
 
             grid->addWidget(
                 cell,
@@ -676,20 +699,27 @@ void DashboardPage::createCourse(int row, int col)
             if (merged.endPeriod == 0 && c.endPeriod != 0) merged.endPeriod = c.endPeriod;
             if (merged.weekType == 0 && c.weekType != 0) merged.weekType = c.weekType;
 
-            // 检查是否存在冲突（两个非空且不相同）
+            // 检查是否存在冲突（只检查教师、位置、考试时间）
+            // 同名课程在不同时段是允许的
             bool conflict = false;
             if (!original.teacher.isEmpty() && !c.teacher.isEmpty() && original.teacher != c.teacher) conflict = true;
             if (!original.location.isEmpty() && !c.location.isEmpty() && original.location != c.location) conflict = true;
             if (!original.examTime.isEmpty() && !c.examTime.isEmpty() && original.examTime != c.examTime) conflict = true;
-            if (original.day != 0 && c.day != 0 && original.day != c.day) conflict = true;
-            if (original.startPeriod != 0 && c.startPeriod != 0 && original.startPeriod != c.startPeriod) conflict = true;
-            if (original.endPeriod != 0 && c.endPeriod != 0 && original.endPeriod != c.endPeriod) conflict = true;
-            if (original.weekType != 0 && c.weekType != 0 && original.weekType != c.weekType) conflict = true;
 
-            if (!conflict) {
-                // 无冲突：直接更新为合并结果
-                DataManager::instance().updateCourse(foundIndex, merged);
-            } else {
+                if (!conflict) {
+                    // 无冲突：新增课程，并合并已有信息
+                    Course newCourse = c;
+                    if (!merged.teacher.isEmpty()) {
+                        newCourse.teacher = merged.teacher;
+                    }
+                    if (!merged.location.isEmpty()) {
+                        newCourse.location = merged.location;
+                    }
+                    if (!merged.examTime.isEmpty()) {
+                        newCourse.examTime = merged.examTime;
+                    }
+                    DataManager::instance().addCourse(newCourse);
+                } else {
                 // 有冲突：提示用户选择
                 QMessageBox msg(this);
                 msg.setWindowTitle("课程冲突");
@@ -740,6 +770,7 @@ void DashboardPage::editCourse(int index)
         CourseEditDialog dialog(c.startPeriod, c.endPeriod);
         dialog.setWindowTitle("编辑课程");
         dialog.setCourseData(c.name, c.teacher, c.location, c.examTime, c.startPeriod, c.endPeriod, c.weekType);
+           QString originalName = c.name;
         
         if (dialog.exec() == QDialog::Accepted) {
             c.name = dialog.getName();
@@ -749,9 +780,25 @@ void DashboardPage::editCourse(int index)
             c.startPeriod = dialog.getStart();
             c.endPeriod = dialog.getEnd();
             c.weekType = dialog.getWeekType();
-            // c.day remains unchanged from edit interface (unless col added to dialog)
 
-            DataManager::instance().updateCourse(index, c);
+            
+                // 如果课程名称相同，则更新所有同名课程
+                if (c.name == originalName) {
+                    const auto allCourses = DataManager::instance().courses();
+                    for (int i = 0; i < allCourses.size(); ++i) {
+                        if (allCourses[i].name == originalName) {
+                            Course sameCourse = allCourses[i];
+                            sameCourse.teacher = c.teacher;
+                            sameCourse.location = c.location;
+                            sameCourse.examTime = c.examTime;
+                            sameCourse.weekType = c.weekType;
+                            DataManager::instance().updateCourse(i, sameCourse);
+                        }
+                    }
+                } else {
+                    // 课程名称改了，只更新当前课程
+                    DataManager::instance().updateCourse(index, c);
+                }
         }
     } else if (actionDialog.deleteSelected()) {
         QTimer::singleShot(0, qApp, [index]() {
@@ -769,5 +816,29 @@ void DashboardPage::editCourse(int index)
 
             DataManager::instance().addTask(newTask);
         }
+    }
+}
+
+void DashboardPage::editCourseDirect(int index)
+{
+    const auto courses = DataManager::instance().courses();
+    if (index < 0 || index >= courses.size()) return;
+
+    Course c = courses[index];
+    
+    CourseEditDialog dialog(c.startPeriod, c.endPeriod);
+    dialog.setWindowTitle("编辑课程");
+    dialog.setCourseData(c.name, c.teacher, c.location, c.examTime, c.startPeriod, c.endPeriod, c.weekType);
+    
+    if (dialog.exec() == QDialog::Accepted) {
+        c.name = dialog.getName();
+        c.teacher = dialog.getTeacher();
+        c.location = dialog.getLocation();
+        c.examTime = dialog.getExamTime();
+        c.startPeriod = dialog.getStart();
+        c.endPeriod = dialog.getEnd();
+        c.weekType = dialog.getWeekType();
+
+        DataManager::instance().updateCourse(index, c);
     }
 }

@@ -12,6 +12,9 @@ public:
     ~DDLPreviewWidget() override = default;
     void showNear(const QPoint &globalPos);
 
+signals:
+    void requestNavigateToTodoPage();
+
 protected:
     void enterEvent(QEnterEvent *event) override;
     void leaveEvent(QEvent *event) override;

@@ -12,6 +12,8 @@
 #include <QDialogButtonBox>
 #include <QApplication>
 #include <QCursor>
+#include <QMenu>
+#include <QContextMenuEvent>
 
 CourseCellWidget::CourseCellWidget(int row, int col, QWidget *parent)
     : QFrame(parent), m_row(row), m_col(col), m_index(-1)
@@ -65,6 +67,8 @@ CourseCellWidget::CourseCellWidget(int row, int col, QWidget *parent)
             m_preview->activateWindow();
         } else {
             m_preview = new DDLPreviewWidget(title->text());
+            connect(m_preview, &DDLPreviewWidget::requestNavigateToTodoPage, 
+                    this, &CourseCellWidget::navigateToTodoPageRequested);
             m_preview->showNear(QCursor::pos());
         }
     });
@@ -86,6 +90,7 @@ CourseCellWidget::CourseCellWidget(int row, int col, QWidget *parent)
 void CourseCellWidget::setCourse(QString name, QString location, QString teacher, int index, int daysLeft)
 {
     m_index = index;
+    m_courseName = name;
     title->setText(name);
 
     info->setText(
@@ -166,6 +171,52 @@ void CourseCellWidget::mouseDoubleClickEvent(QMouseEvent *)
         if(m_index != -1)
         {
             emit editCourseRequested(m_index);
+        }
+    }
+}
+
+void CourseCellWidget::contextMenuEvent(QContextMenuEvent *event)
+{
+    QMenu menu;
+    menu.setWindowFlag(Qt::NoDropShadowWindowHint);
+    menu.setStyleSheet(R"(
+        QMenu {
+            background-color: white;
+            border: 1px solid #E0E0E0;
+            border-radius: 8px;
+        }
+        QMenu::item:selected {
+            background-color: #8B1E2D;
+            color: white;
+        }
+        QMenu::item:pressed {
+            background-color: #7A1C2C;
+        }
+    )");
+
+    if (title->text().isEmpty()) {
+        // Empty cell: show only "Create Course" option
+        QAction *createAction = menu.addAction("➕ 创建课程");
+        QAction *selected = menu.exec(event->globalPos());
+        if (selected == createAction) {
+            emit createCourseRequested(m_row, m_col);
+        }
+    } else {
+        // Cell with course: show edit, delete, and add DDL options
+        QAction *editAction = menu.addAction("✏ 编辑课程");
+        QAction *deleteAction = menu.addAction("🗑 删除课程");
+        menu.addSeparator();
+        QAction *addDDLAction = menu.addAction("➕ 添加 DDL");
+
+        QAction *selected = menu.exec(event->globalPos());
+
+        if (selected == editAction && m_index != -1) {
+            // Right-click edit goes directly to edit dialog, bypassing ActionDialog
+            emit editCourseDirectlyRequested(m_index);
+        } else if (selected == deleteAction && m_index != -1) {
+            emit deleteCourseRequested(m_index);
+        } else if (selected == addDDLAction) {
+            emit addDDLRequested(m_courseName);
         }
     }
 }
