@@ -10,8 +10,11 @@
 struct Course {
     QString name;
     QString teacher;
+    QString contact;
     QString location;
     QString examTime;
+    QString note;
+    QString folderPath;
     int day;           // 1-7 (周一到周日)
     int startPeriod;   // 起始节次
     int endPeriod;     // 结束节次
@@ -21,8 +24,11 @@ struct Course {
         QJsonObject obj;
         obj["name"] = name;
         obj["teacher"] = teacher;
+        obj["contact"] = contact;
         obj["location"] = location;
         obj["examTime"] = examTime;
+        obj["note"] = note;
+        obj["folderPath"] = folderPath;
         obj["day"] = day;
         obj["startPeriod"] = startPeriod;
         obj["endPeriod"] = endPeriod;
@@ -34,8 +40,11 @@ struct Course {
         Course c;
         c.name = obj["name"].toString();
         c.teacher = obj["teacher"].toString();
+        c.contact = obj["contact"].toString();
         c.location = obj["location"].toString();
         c.examTime = obj["examTime"].toString();
+        c.note = obj["note"].toString();
+        c.folderPath = obj["folderPath"].toString();
         c.day = obj["day"].toInt();
         c.startPeriod = obj["startPeriod"].toInt();
         c.endPeriod = obj["endPeriod"].toInt();

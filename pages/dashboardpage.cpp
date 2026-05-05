@@ -18,11 +18,56 @@
 #include <algorithm>
 #include <vector>
 #include <utility>
+#include <QHash>
+#include <QStringList>
 
 #include "../models/datamanager.h"
 #include "../dialogs/courseeditdialog.h"
 #include "../dialogs/courseactiondialog.h"
 #include "../dialogs/taskeditdialog.h"
+
+namespace {
+QString dayText(int day)
+{
+    switch (day) {
+    case 1: return "周一";
+    case 2: return "周二";
+    case 3: return "周三";
+    case 4: return "周四";
+    case 5: return "周五";
+    case 6: return "周六";
+    case 7: return "周日";
+    default: return "未设置";
+    }
+}
+
+QString scheduleLine(const Course& course)
+{
+    if (course.day < 1 || course.day > 7 || course.startPeriod <= 0 || course.endPeriod <= 0) {
+        return QString();
+    }
+
+    QString line = QString("%1 %2-%3节").arg(dayText(course.day)).arg(course.startPeriod).arg(course.endPeriod);
+    if (course.weekType == 1) {
+        line += "（单周）";
+    } else if (course.weekType == 2) {
+        line += "（双周）";
+    }
+    return line;
+}
+
+QString scheduleSummaryForGroup(const QList<Course>& courses, const QList<int>& indices)
+{
+    QStringList lines;
+    for (int index : indices) {
+        const QString line = scheduleLine(courses[index]);
+        if (!line.isEmpty() && !lines.contains(line)) {
+            lines.append(line);
+        }
+    }
+    return lines.join("\n");
+}
+}
 
 DashboardPage::DashboardPage(QWidget *parent)
     : QWidget(parent)
@@ -599,58 +644,68 @@ void DashboardPage::renderCourses()
     updateDDLWidget();
     initGrid();
 
-    int index = 0;
     const auto courses = DataManager::instance().courses();
-    for (const Course &c : courses)
-    {
-        bool showCourse = true;
-        if (c.weekType == 1 && currentWeek % 2 == 0) {
-            showCourse = false;
-        }
-        if (c.weekType == 2 && currentWeek % 2 == 1) {
-            showCourse = false;
-        }
 
-        if (showCourse) {
-            const int daysLeft = getNearestDDL(c.name);
-            CourseCellWidget *cell = new CourseCellWidget(c.startPeriod, c.day);
-            cell->setCourse(c.name, c.location, c.teacher, index, daysLeft);
-            
-            connect(cell, &CourseCellWidget::editCourseRequested,
-                    this, &DashboardPage::editCourse);
-            connect(cell, &CourseCellWidget::editCourseDirectlyRequested,
-                    this, &DashboardPage::editCourseDirect);
-            connect(cell, &CourseCellWidget::navigateToTodoPageRequested,
-                    this, &DashboardPage::navigateToTodoPageRequested);
-            connect(cell, &CourseCellWidget::deleteCourseRequested,
-                    this, [this](int idx) { 
-                        if (idx >= 0) {
-                            DataManager::instance().deleteCourse(idx);
-                        }
-                    });
-            connect(cell, &CourseCellWidget::addDDLRequested,
-                    this, [this](const QString &courseName) {
-                        TaskEditDialog taskDialog(this, courseName);
-                        if (taskDialog.exec() == QDialog::Accepted) {
-                            Task newTask;
-                            newTask.course = taskDialog.getCourseName();
-                            newTask.title = taskDialog.getTitle();
-                            newTask.deadline = taskDialog.getDeadline();
-                            newTask.priority = taskDialog.getPriority();
-                            newTask.completed = false;
-                            DataManager::instance().addTask(newTask);
-                        }
-                    });
+    // 为了在课程表上显示同名课程的所有时段（每个时段独立占格），这里不再将同名课程合并为单个格子。
+    for (int i = 0; i < courses.size(); ++i) {
+        const Course &c = courses[i];
+        const QString courseName = c.name.trimmed();
+        if (courseName.isEmpty()) continue;
 
-            grid->addWidget(
-                cell,
-                c.startPeriod,
-                c.day,
-                c.endPeriod - c.startPeriod + 1,
-                1
-            );
-        }
-        index++;
+        // 周次过滤
+        if (c.weekType == 1 && currentWeek % 2 == 0) continue;
+        if (c.weekType == 2 && currentWeek % 2 == 1) continue;
+
+        const int daysLeft = getNearestDDL(courseName);
+        CourseCellWidget *cell = new CourseCellWidget(c.startPeriod, c.day);
+        cell->setCourse(courseName, c.location, c.teacher, i, daysLeft);
+
+        connect(cell, &CourseCellWidget::editCourseRequested,
+                this, &DashboardPage::editCourse);
+        connect(cell, &CourseCellWidget::editCourseDirectlyRequested,
+                this, &DashboardPage::editCourseDirect);
+        connect(cell, &CourseCellWidget::navigateToTodoPageRequested,
+                this, &DashboardPage::navigateToTodoPageRequested);
+        connect(cell, &CourseCellWidget::deleteCourseRequested,
+                this, [this](int idx) { 
+                    if (idx >= 0) {
+                        DataManager::instance().deleteCourse(idx);
+                    }
+                });
+        connect(cell, &CourseCellWidget::addDDLRequested,
+                this, [this](const QString &courseName) {
+                    TaskEditDialog taskDialog(this, courseName);
+                    if (taskDialog.exec() == QDialog::Accepted) {
+                        Task newTask;
+                        newTask.course = taskDialog.getCourseName();
+                        newTask.title = taskDialog.getTitle();
+                        newTask.deadline = taskDialog.getDeadline();
+                        newTask.priority = taskDialog.getPriority();
+                        newTask.completed = false;
+                        DataManager::instance().addTask(newTask);
+                    }
+                });
+
+        // 当双击某个时段时，打开课程详情页，但课程详情应以同名课程的第一个记录为代表，
+        // 保持同名课程共享同一个课程页面/任务列表/资料绑定。
+        connect(cell, &CourseCellWidget::courseDoubleClicked,
+                this, [this, courseName](const Course &){
+            QList<Course> all = DataManager::instance().courses();
+            for (const Course &cc : all) {
+                if (cc.name == courseName) {
+                    emit openCourseDetail(cc);
+                    break;
+                }
+            }
+        });
+
+        grid->addWidget(
+            cell,
+            c.startPeriod,
+            c.day,
+            c.endPeriod - c.startPeriod + 1,
+            1
+        );
     }
 }
 
@@ -839,6 +894,51 @@ void DashboardPage::editCourseDirect(int index)
         c.endPeriod = dialog.getEnd();
         c.weekType = dialog.getWeekType();
 
-        DataManager::instance().updateCourse(index, c);
+        const QString originalName = courses[index].name;
+        const auto allCourses = DataManager::instance().courses();
+        for (int i = 0; i < allCourses.size(); ++i) {
+            if (allCourses[i].name == originalName) {
+                Course updated = allCourses[i];
+                updated.name = c.name;
+                updated.teacher = c.teacher;
+                updated.contact = c.contact;
+                updated.location = c.location;
+                updated.examTime = c.examTime;
+                updated.note = c.note;
+                updated.folderPath = c.folderPath;
+                updated.day = c.day;
+                updated.startPeriod = c.startPeriod;
+                updated.endPeriod = c.endPeriod;
+                updated.weekType = c.weekType;
+                DataManager::instance().updateCourse(i, updated);
+            }
+        }
     }
+}
+
+void DashboardPage::applyCourseUpdate(const Course& updatedCourse)
+{
+    if (updatedCourse.name.trimmed().isEmpty()) {
+        return;
+    }
+
+    const auto courses = DataManager::instance().courses();
+    for (int i = 0; i < courses.size(); ++i) {
+        if (courses[i].name == updatedCourse.name) {
+            Course merged = courses[i];
+            merged.teacher = updatedCourse.teacher;
+            merged.contact = updatedCourse.contact;
+            merged.location = updatedCourse.location;
+            merged.examTime = updatedCourse.examTime;
+            merged.note = updatedCourse.note;
+            merged.folderPath = updatedCourse.folderPath;
+            DataManager::instance().updateCourse(i, merged);
+        }
+    }
+}
+
+void DashboardPage::refreshCourseUrgency()
+{
+    renderCourses();
+    updateBottomStats();
 }

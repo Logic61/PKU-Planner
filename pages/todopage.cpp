@@ -349,6 +349,12 @@ void TodoPage::refreshTasks()
     applyFilter();
 }
 
+void TodoPage::reloadTasks()
+{
+    refreshCourseFilter();
+    refreshTasks();
+}
+
 void TodoPage::applyFilter()
 {
     while (QLayoutItem *item = boardLayout->takeAt(0)) {

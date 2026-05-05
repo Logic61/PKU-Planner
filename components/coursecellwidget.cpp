@@ -12,6 +12,7 @@
 #include <QDialogButtonBox>
 #include <QApplication>
 #include <QCursor>
+#include "../models/datamanager.h"
 #include <QMenu>
 #include <QContextMenuEvent>
 
@@ -87,15 +88,18 @@ CourseCellWidget::CourseCellWidget(int row, int col, QWidget *parent)
     });
 }
 
-void CourseCellWidget::setCourse(QString name, QString location, QString teacher, int index, int daysLeft)
+void CourseCellWidget::setCourse(QString name, QString location, QString teacher, int index, int daysLeft, QString scheduleSummary)
 {
     m_index = index;
     m_courseName = name;
     title->setText(name);
 
-    info->setText(
-        location + "\n" + teacher
-    );
+    QStringList infoLines;
+    infoLines << location << teacher;
+    if (!scheduleSummary.trimmed().isEmpty()) {
+        infoLines << scheduleSummary;
+    }
+    info->setText(infoLines.join("\n"));
 
     // 默认：无DDL（绿色系）
     QString bg = "#E8F5E9";
@@ -170,7 +174,13 @@ void CourseCellWidget::mouseDoubleClickEvent(QMouseEvent *)
     {
         if(m_index != -1)
         {
-            emit editCourseRequested(m_index);
+            // Emit drawer-opening signal with full Course data
+            const auto courses = DataManager::instance().courses();
+            if (m_index >=0 && m_index < courses.size()) {
+                emit courseDoubleClicked(courses[m_index]);
+            } else {
+                emit editCourseRequested(m_index);
+            }
         }
     }
 }

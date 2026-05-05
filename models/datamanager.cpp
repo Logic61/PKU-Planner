@@ -41,11 +41,20 @@ void DataManager::addCourse(const Course& c)
         if (!existing.teacher.isEmpty()) {
             newCourse.teacher = existing.teacher;
         }
+        if (!existing.contact.isEmpty()) {
+            newCourse.contact = existing.contact;
+        }
         if (!existing.location.isEmpty()) {
             newCourse.location = existing.location;
         }
         if (!existing.examTime.isEmpty()) {
             newCourse.examTime = existing.examTime;
+        }
+        if (!existing.note.isEmpty()) {
+            newCourse.note = existing.note;
+        }
+        if (!existing.folderPath.isEmpty()) {
+            newCourse.folderPath = existing.folderPath;
         }
     }
     m_courses.append(newCourse);

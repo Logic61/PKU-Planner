@@ -2,6 +2,7 @@
 #define COURSECELLWIDGET_H
 
 #include <QFrame>
+#include "../models/course.h"
 
 class QLabel;
 class QMouseEvent;
@@ -15,7 +16,7 @@ class CourseCellWidget : public QFrame
 public:
     explicit CourseCellWidget(int row = 0, int col = 0, QWidget *parent = nullptr);
 
-    void setCourse(QString name, QString location, QString teacher, int index = -1, int daysLeft = -999);
+    void setCourse(QString name, QString location, QString teacher, int index = -1, int daysLeft = -999, QString scheduleSummary = QString());
 
 signals:
     void createCourseRequested(int row, int col);
@@ -24,6 +25,7 @@ signals:
     void deleteCourseRequested(int index);
     void addDDLRequested(const QString &courseName);
     void navigateToTodoPageRequested();
+    void courseDoubleClicked(const Course& course);
 
 protected:
     void enterEvent(QEnterEvent *event) override;

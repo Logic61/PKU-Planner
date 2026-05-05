@@ -56,6 +56,22 @@ set(PROJECT_SOURCES
     models/taskmodel.h
     models/task.h
     models/course.h
+    widgets/coursedetail/courseheaderwidget.cpp
+    widgets/coursedetail/courseheaderwidget.h
+    widgets/coursedetail/coursefilepage.cpp
+    widgets/coursedetail/coursefilepage.h
+    widgets/coursedetail/coursetaskpage.cpp
+    widgets/coursedetail/coursetaskpage.h
+    widgets/coursedetail/courseinfopage.cpp
+    widgets/coursedetail/courseinfopage.h
+    widgets/coursedetail/coursetabbar.cpp
+    widgets/coursedetail/coursetabbar.h
+    widgets/coursedetail/coursedetaildrawer.cpp
+    widgets/coursedetail/coursedetaildrawer.h
+    widgets/coursedetail/coursestatswidget.cpp
+    widgets/coursedetail/coursestatswidget.h
+    pages/statspage.cpp
+    pages/statspage.h
 )
 
 qt_add_executable(PKUPlanner

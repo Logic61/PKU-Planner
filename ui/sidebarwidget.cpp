@@ -29,6 +29,7 @@ SidebarWidget::SidebarWidget(QWidget *parent)
 
     QPushButton *btnDashboard = new QPushButton("课程表");
     QPushButton *btnTodo = new QPushButton("待办");
+    QPushButton *btnStats = new QPushButton("📊 统计");
 
         const QString buttonStyle = R"(
             QPushButton {
@@ -61,23 +62,34 @@ SidebarWidget::SidebarWidget(QWidget *parent)
     btnTodo->setStyleSheet(buttonStyle);
     btnDashboard->setCheckable(true);
     btnTodo->setCheckable(true);
+    btnStats->setCheckable(true);
     btnDashboard->setChecked(true);
     btnDashboard->setCursor(Qt::PointingHandCursor);
     btnTodo->setCursor(Qt::PointingHandCursor);
 
     layout->addWidget(btnDashboard);
     layout->addWidget(btnTodo);
+    layout->addWidget(btnStats);
     layout->addStretch();
 
     connect(btnDashboard, &QPushButton::clicked, [=](){
         btnDashboard->setChecked(true);
         btnTodo->setChecked(false);
+        btnStats->setChecked(false);
         emit pageChanged(0);
     });
 
     connect(btnTodo, &QPushButton::clicked, [=](){
         btnTodo->setChecked(true);
         btnDashboard->setChecked(false);
+        btnStats->setChecked(false);
         emit pageChanged(1);
+    });
+
+    connect(btnStats, &QPushButton::clicked, [=](){
+        btnStats->setChecked(true);
+        btnDashboard->setChecked(false);
+        btnTodo->setChecked(false);
+        emit pageChanged(2);
     });
 }

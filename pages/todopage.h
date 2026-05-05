@@ -16,6 +16,9 @@ class TodoPage : public QWidget
 public:
     explicit TodoPage(QWidget *parent = nullptr);
 
+public slots:
+    void reloadTasks();
+
 private:
     QComboBox *courseFilter = nullptr;
     QComboBox *timeFilter = nullptr;
