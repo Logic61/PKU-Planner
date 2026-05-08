@@ -19,6 +19,10 @@
 #include "dialogs/courseeditdialog.h"
 #include "models/datamanager.h"
 #include "utils/pageanimator.h"
+#include "widgets/mascot/mascotwidget.h"
+#include <QGuiApplication>
+#include <QScreen>
+#include <QDebug>
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
@@ -131,9 +135,14 @@ void MainWindow::initPages()
         // Auto refresh stats when tasks change
         connect(&DataManager::instance(), &DataManager::tasksChanged, statsPage, &StatsPage::refreshData);
     // Drawer actions: add task / edit course
-    connect(courseDrawer, &CourseDetailDrawer::addTaskRequested, this, &MainWindow::handleAddTaskRequested);
-    connect(courseDrawer, &CourseDetailDrawer::editCourseRequested, this, &MainWindow::handleEditCourseRequested);
-}
+connect(courseDrawer, &CourseDetailDrawer::addTaskRequested, this, &MainWindow::handleAddTaskRequested);
+        connect(courseDrawer, &CourseDetailDrawer::editCourseRequested, this, &MainWindow::handleEditCourseRequested);
+
+        // Mascot popup
+        mascotWidget = new MascotWidget(this);
+        connect(sidebar, &SidebarWidget::mascotClicked, this, &MainWindow::showMascotPopup);
+        qDebug() << "[MainWindow] Connected mascotClicked to showMascotPopup";
+    }
 
 void MainWindow::onNavigateToTodoPage()
 {
@@ -193,4 +202,13 @@ void MainWindow::handleEditCourseRequested(Course course)
             DataManager::instance().updateCourse(foundIndex, updated);
         }
     }
+}
+
+void MainWindow::showMascotPopup()
+{
+    if (!mascotWidget) {
+        mascotWidget = new MascotWidget(this);
+    }
+    // Do NOT call mascotWidget->show(); here. Only its internal popupFrame should be shown.
+    mascotWidget->showPopup(); 
 }

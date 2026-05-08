@@ -139,6 +139,10 @@ CourseStatsWidget::CourseStatsWidget(QWidget *parent)
     avgTimeLabel = stat4->findChild<QLabel*>("value");
     statsGrid->addWidget(stat4, 1, 1);
 
+    QFrame *stat5 = createStatItem("🎯 按时完成", "0%", Theme::SUCCESS);
+    onTimeRateLabel = stat5->findChild<QLabel*>("value");
+    statsGrid->addWidget(stat5, 2, 0, 1, 2);
+
     root->addWidget(statsCard);
     root->addStretch();
 
@@ -192,6 +196,7 @@ void CourseStatsWidget::refreshStats()
     int totalCount = 0;
     int completedCount = 0;
     int overdueCount = 0;
+    int onTimeCount = 0;
     int validEarlyCount = 0;
     double totalEarlyDays = 0;
 
@@ -205,6 +210,9 @@ void CourseStatsWidget::refreshStats()
         if (task.completed) {
             completedCount++;
             if (task.completedAt.isValid()) {
+                if (task.completedAt <= task.deadline) {
+                    onTimeCount++;
+                }
                 qint64 secs = task.completedAt.secsTo(task.deadline);
                 double days = secs / 86400.0;
                 totalEarlyDays += days;
@@ -217,6 +225,7 @@ void CourseStatsWidget::refreshStats()
 
     int pendingCount = totalCount - completedCount;
     int completionRate = totalCount > 0 ? (completedCount * 100 / totalCount) : 0;
+    int onTimeRate = completedCount > 0 ? (onTimeCount * 100 / completedCount) : 0;
     double avgEarly = validEarlyCount > 0 ? (totalEarlyDays / validEarlyCount) : 0;
 
     completionPercentLabel->setText(QString("%1%").arg(completionRate));
@@ -224,8 +233,8 @@ void CourseStatsWidget::refreshStats()
     completionLabel->setText(QString("%1 / %2 任务").arg(completedCount).arg(totalCount));
 
     completedTasksLabel->setText(QString::number(completedCount));
-
     pendingTasksLabel->setText(QString::number(pendingCount));
+    onTimeRateLabel->setText(QString("%1%").arg(onTimeRate));
 
     if (overdueCount > 0) {
         overdueTasksLabel->setText(QString::number(overdueCount));

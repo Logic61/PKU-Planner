@@ -9,6 +9,7 @@ class TopbarWidget;
 class DashboardPage;
 class TodoPage;
 class CourseDetailDrawer;
+class MascotWidget;
 #include "models/course.h"
 
 class MainWindow : public QMainWindow
@@ -24,6 +25,7 @@ private slots:
     void showCourseDrawer(const Course& course);
     void handleAddTaskRequested(Course course);
     void handleEditCourseRequested(Course course);
+    void showMascotPopup();
 
 private:
     QStackedWidget *stack;
@@ -32,6 +34,7 @@ private:
     DashboardPage *dashboardPage = nullptr;
     TodoPage *todoPage = nullptr;
     CourseDetailDrawer *courseDrawer = nullptr;
+    MascotWidget *mascotWidget = nullptr;
     bool pagesInitialized = false;
 };
 

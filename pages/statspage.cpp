@@ -412,11 +412,11 @@ void StatsPage::updateTrend(const QList<Task>& tasks)
         dayFrame->setStyleSheet("background:#FEFEFE;border-radius:8px;padding:8px;");
         QVBoxLayout* dayLayout = new QVBoxLayout(dayFrame);
         dayLayout->setContentsMargins(4,4,4,4);
+        dayLayout->setSpacing(6);
 
         QLabel* countLabel = new QLabel(QString::number(count));
-        countLabel->setStyleSheet(QString("font-size:16px;font-weight:700;color:%1;").arg(Theme::PRIMARY));
+        countLabel->setStyleSheet(QString("font-size:14px;font-weight:700;color:%1;").arg(Theme::PRIMARY));
         countLabel->setAlignment(Qt::AlignCenter);
-        dayLayout->addWidget(countLabel);
 
         QString dayStr;
         if (i == 0) dayStr = "今天";
@@ -426,25 +426,29 @@ void StatsPage::updateTrend(const QList<Task>& tasks)
         QLabel* dayLabel = new QLabel(dayStr);
         dayLabel->setStyleSheet("color:#999;font-size:10px;");
         dayLabel->setAlignment(Qt::AlignCenter);
-        dayLayout->addWidget(dayLabel);
 
         QProgressBar* bar = new QProgressBar;
+        bar->setOrientation(Qt::Vertical);
         bar->setRange(0, maxCount);
         bar->setValue(count);
+        bar->setFixedWidth(12);
+        bar->setMinimumHeight(60);
         bar->setStyleSheet(QString(R"(
             QProgressBar {
                 border: none;
                 background: %1;
-                border-radius: 3px;
-                height: 6px;
+                border-radius: 6px;
             }
             QProgressBar::chunk {
                 background: %2;
-                border-radius: 3px;
+                border-radius: 6px;
             }
         )").arg(Theme::BORDER).arg(Theme::PRIMARY));
         bar->setTextVisible(false);
-        dayLayout->addWidget(bar);
+
+        dayLayout->addWidget(countLabel, 0, Qt::AlignCenter);
+        dayLayout->addWidget(bar, 1, Qt::AlignCenter);
+        dayLayout->addWidget(dayLabel, 0, Qt::AlignCenter);
 
         trendContainer->addWidget(dayFrame, 1);
     }

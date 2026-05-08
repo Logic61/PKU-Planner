@@ -82,12 +82,17 @@ set(PROJECT_SOURCES
     widgets/coursedetail/coursedetaildrawer.h
     widgets/coursedetail/coursestatswidget.cpp
     widgets/coursedetail/coursestatswidget.h
+    widgets/mascot/mascotwidget.cpp
+    widgets/mascot/mascotwidget.h
     pages/statspage.cpp
     pages/statspage.h
     pages/settingspage.cpp
     pages/settingspage.h
     services/configservice.cpp
     services/configservice.h
+    services/mascotstateservice.cpp
+    services/mascotstateservice.h
+    models/mascotstate.h
 )
 
 qt_add_executable(PKUPlanner

@@ -88,7 +88,11 @@ QList<Task> DataManager::tasks() const
 void DataManager::addTask(const Task& t)
 {
     qDebug() << "[DataManager::addTask] Adding task:" << t.title << "with deadline:" << t.deadline.toString("yyyy-MM-dd hh:mm:ss");
-    m_tasks.append(t);
+    Task newTask = t;
+    if (newTask.completed && !newTask.completedAt.isValid()) {
+        newTask.completedAt = QDateTime::currentDateTime();
+    }
+    m_tasks.append(newTask);
     qDebug() << "[DataManager::addTask] Task count now:" << m_tasks.size();
     qDebug() << "[DataManager::addTask] Emitting tasksChanged signal";
     emit tasksChanged();
@@ -98,7 +102,25 @@ void DataManager::addTask(const Task& t)
 void DataManager::updateTask(int index, const Task& t)
 {
     if (index >= 0 && index < m_tasks.size()) {
-        m_tasks[index] = t;
+        Task updatedTask = t;
+        const Task &oldTask = m_tasks[index];
+        
+        // If becoming completed, set completedAt
+        if (updatedTask.completed && !oldTask.completed) {
+            if (!updatedTask.completedAt.isValid()) {
+                updatedTask.completedAt = QDateTime::currentDateTime();
+            }
+        }
+        // If becoming incomplete, clear completedAt
+        else if (!updatedTask.completed && oldTask.completed) {
+            updatedTask.completedAt = QDateTime();
+        }
+        // If was already completed but doesn't have a time, set it
+        else if (updatedTask.completed && !updatedTask.completedAt.isValid()) {
+            updatedTask.completedAt = QDateTime::currentDateTime();
+        }
+        
+        m_tasks[index] = updatedTask;
         emit tasksChanged();
         saveTasks();
     }

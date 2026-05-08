@@ -22,6 +22,7 @@ private:
     QLabel *pendingTasksLabel;
     QLabel *overdueTasksLabel;
     QLabel *avgTimeLabel;
+    QLabel *onTimeRateLabel;
     QProgressBar *progressBar;
 
     QFrame* createStatItem(const QString& title, const QString& value, const QString& color);

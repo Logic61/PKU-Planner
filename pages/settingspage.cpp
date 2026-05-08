@@ -632,7 +632,7 @@ QFrame* SettingsPage::createAboutCard()
     QVBoxLayout *taglineV = new QVBoxLayout(taglineBox);
     taglineV->setSpacing(4);
 
-    QLabel *tagline = new QLabel("「未名湖畔，DDL 无眠」", this);
+    QLabel *tagline = new QLabel("「未名湖畔好读书」", this);
     tagline->setAlignment(Qt::AlignCenter);
     tagline->setStyleSheet(QString(
         "font-size:16px;"
@@ -641,7 +641,7 @@ QFrame* SettingsPage::createAboutCard()
     ).arg(Theme::PRIMARY));
     taglineV->addWidget(tagline);
 
-    QLabel *desc = new QLabel("北京大学 · 信息科学技术学院", this);
+    QLabel *desc = new QLabel("By 此处应有AC", this);
     desc->setAlignment(Qt::AlignCenter);
     desc->setStyleSheet(QString(
         "font-size:12px;"

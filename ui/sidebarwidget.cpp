@@ -3,6 +3,12 @@
 #include <QLabel>
 #include <QVBoxLayout>
 #include <QPushButton>
+#include <QPixmap>
+#include <QTimer>
+#include <QMouseEvent>
+#include <QDebug>
+#include "../widgets/mascot/mascotwidget.h"
+#include "../services/mascotstateservice.h"
 
 SidebarWidget::SidebarWidget(QWidget *parent)
     : QWidget(parent)
@@ -80,10 +86,46 @@ SidebarWidget::SidebarWidget(QWidget *parent)
     layout->addWidget(btnSettings);
     layout->addStretch();
 
+    QFrame *mascotContainer = new QFrame(this);
+    mascotContainer->setFixedSize(200, 160);
+    mascotContainer->setStyleSheet("background:transparent;");
+    QVBoxLayout *mascotLayout = new QVBoxLayout(mascotContainer);
+    mascotLayout->setContentsMargins(0, 10, 0, 10);
+
+    mascotLabel = new QLabel(mascotContainer);
+    mascotLabel->setFixedSize(200, 160);
+    mascotLabel->setScaledContents(true);
+    mascotLabel->setCursor(Qt::PointingHandCursor);
+    mascotLayout->addWidget(mascotLabel);
+
+    mascotLabel->installEventFilter(this);
+    mascotLabel->setMouseTracking(true);
+
+    auto loadMascotImage = [&](MascotState state) {
+        QString imagePath = QString("C:/Users/32372/Desktop/Course-Helper/image/%1.png").arg((int)state);
+        qDebug() << "[Sidebar] Loading mascot image:" << imagePath;
+        QPixmap pix(imagePath);
+        if (!pix.isNull()) {
+            mascotLabel->setPixmap(pix);
+            qDebug() << "[Sidebar] Mascot image loaded successfully";
+        } else {
+            qDebug() << "[Sidebar] Mascot image failed to load";
+        }
+    };
+
+    loadMascotImage(MascotStateService::instance().currentState());
+
+    connect(&MascotStateService::instance(), &MascotStateService::stateChanged, this, [loadMascotImage](MascotState state) {
+        loadMascotImage(state);
+    });
+
+layout->addWidget(mascotContainer, 0, Qt::AlignCenter);
+
     connect(btnDashboard, &QPushButton::clicked, [=](){
         btnDashboard->setChecked(true);
         btnTodo->setChecked(false);
         btnStats->setChecked(false);
+        btnSettings->setChecked(false);
         emit pageChanged(0);
     });
 
@@ -116,4 +158,28 @@ SidebarWidget::SidebarWidget(QWidget *parent)
         btnStats->setChecked(page == 2);
         btnSettings->setChecked(page == 3);
     });
+}
+
+bool SidebarWidget::eventFilter(QObject *obj, QEvent *event)
+{
+    qDebug() << "[Sidebar] eventFilter called, type:" << event->type() << "obj:" << obj;
+    if (obj == mascotLabel && event->type() == QEvent::MouseButtonPress) {
+        qDebug() << "[Sidebar] Mouse press on mascot label";
+        QMouseEvent *mouseEvent = static_cast<QMouseEvent *>(event);
+        if (mouseEvent->button() == Qt::LeftButton) {
+            qDebug() << "[Sidebar] Emitting mascotClicked";
+            emit mascotClicked();
+            return true;
+        }
+    }
+    return QWidget::eventFilter(obj, event);
+}
+
+void SidebarWidget::mousePressEvent(QMouseEvent *event)
+{
+    if (mascotLabel && mascotLabel->geometry().contains(event->pos())) {
+        emit mascotClicked();
+        return;
+    }
+    QWidget::mousePressEvent(event);
 }
