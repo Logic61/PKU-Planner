@@ -3,12 +3,13 @@
 
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonParseError>
 #include <QFile>
 #include <QDir>
 #include <QCoreApplication>
 #include <QDebug>
-#include <QDesktopServices>
-#include <QUrl>
+#include <QSaveFile>
+#include <QDateTime>
 
 ConfigService& ConfigService::instance()
 {
@@ -31,41 +32,64 @@ ConfigService::ConfigService()
 void ConfigService::load()
 {
     QString dataPath = DataManager::instance().storageDir();
-    QFile file(dataPath + "/config.json");
+    QString fullPath = QDir(dataPath).absoluteFilePath("config.json");
 
-    if (file.open(QIODevice::ReadOnly)) {
-        QByteArray data = file.readAll();
-        file.close();
-
-        QJsonParseError error;
-        QJsonDocument doc = QJsonDocument::fromJson(data, &error);
-
-        if (error.error == QJsonParseError::NoError && doc.isObject()) {
-            QJsonObject obj = doc.object();
-            m_reminderEnabled = obj.value("reminderEnabled").toBool(true);
-            m_reminderHours = obj.value("reminderHours").toInt(24);
-            m_detailDrawerMode = obj.value("detailDrawerMode").toBool(true);
-            m_exportPath = obj.value("exportPath").toString("");
-            m_onboardingShown = obj.value("onboardingShown").toBool(false);
-
-            QString startStr = obj.value("semesterStart").toString();
-            QString endStr = obj.value("semesterEnd").toString();
-            if (!startStr.isEmpty()) {
-                m_semesterStart = QDate::fromString(startStr, "yyyy-MM-dd");
-            }
-            if (!endStr.isEmpty()) {
-                m_semesterEnd = QDate::fromString(endStr, "yyyy-MM-dd");
-            }
-
-            qDebug() << "[ConfigService] Loaded config";
-        }
+    QFile file(fullPath);
+    if (!file.exists()) {
+        qDebug() << "[ConfigService] config.json not found, will be created";
+        return;
     }
+
+    if (!file.open(QIODevice::ReadOnly)) {
+        qWarning() << "[ConfigService] Cannot open config file:" << fullPath;
+        return;
+    }
+
+    QByteArray data = file.readAll();
+    file.close();
+
+    QJsonParseError error;
+    QJsonDocument doc = QJsonDocument::fromJson(data, &error);
+
+    if (error.error != QJsonParseError::NoError || doc.isNull() || !doc.isObject()) {
+        qWarning() << "[ConfigService] JSON parse error:" << error.errorString();
+        
+        QString backupPath = fullPath + "." + QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss") + ".corrupted";
+        QFile::copy(fullPath, backupPath);
+        qWarning() << "[ConfigService] Backed up corrupted config to:" << backupPath;
+        
+        QFile::remove(fullPath);
+        return;
+    }
+
+    QJsonObject obj = doc.object();
+    m_reminderEnabled = obj.value("reminderEnabled").toBool(true);
+    m_reminderHours = obj.value("reminderHours").toInt(24);
+    m_detailDrawerMode = obj.value("detailDrawerMode").toBool(true);
+    m_exportPath = obj.value("exportPath").toString("");
+    m_onboardingShown = obj.value("onboardingShown").toBool(false);
+
+    QString startStr = obj.value("semesterStart").toString();
+    QString endStr = obj.value("semesterEnd").toString();
+    if (!startStr.isEmpty()) {
+        m_semesterStart = QDate::fromString(startStr, "yyyy-MM-dd");
+    }
+    if (!endStr.isEmpty()) {
+        m_semesterEnd = QDate::fromString(endStr, "yyyy-MM-dd");
+    }
+
+    QString summaryStr = obj.value("lastSummaryDate").toString();
+    if (!summaryStr.isEmpty()) {
+        m_lastSummaryDate = QDate::fromString(summaryStr, "yyyy-MM-dd");
+    }
+
+    qDebug() << "[ConfigService] Loaded config";
 }
 
 void ConfigService::save()
 {
     QString dataPath = DataManager::instance().storageDir();
-    QFile file(dataPath + "/config.json");
+    QString fullPath = QDir(dataPath).absoluteFilePath("config.json");
 
     QJsonObject obj;
     obj["reminderEnabled"] = m_reminderEnabled;
@@ -75,14 +99,26 @@ void ConfigService::save()
     obj["onboardingShown"] = m_onboardingShown;
     obj["semesterStart"] = m_semesterStart.toString("yyyy-MM-dd");
     obj["semesterEnd"] = m_semesterEnd.toString("yyyy-MM-dd");
+    if (m_lastSummaryDate.isValid()) {
+        obj["lastSummaryDate"] = m_lastSummaryDate.toString("yyyy-MM-dd");
+    }
 
     QJsonDocument doc(obj);
 
-    if (file.open(QIODevice::WriteOnly)) {
-        file.write(doc.toJson(QJsonDocument::Indented));
-        file.close();
-        qDebug() << "[ConfigService] Saved config";
+    QSaveFile file(fullPath);
+    if (!file.open(QIODevice::WriteOnly)) {
+        qWarning() << "[ConfigService] Cannot open config file for writing:" << fullPath;
+        return;
     }
+
+    file.write(doc.toJson(QJsonDocument::Indented));
+
+    if (!file.commit()) {
+        qWarning() << "[ConfigService] Failed to commit config file";
+        return;
+    }
+
+    qDebug() << "[ConfigService] Saved config";
 }
 
 bool ConfigService::isReminderEnabled() const
@@ -204,6 +240,17 @@ void ConfigService::setSemesterEnd(const QDate& date)
     m_semesterEnd = date;
     save();
     emit configChanged();
+}
+
+QDate ConfigService::getLastSummaryDate() const
+{
+    return m_lastSummaryDate;
+}
+
+void ConfigService::setLastSummaryDate(const QDate& date)
+{
+    m_lastSummaryDate = date;
+    save();
 }
 
 int ConfigService::getCurrentWeek() const

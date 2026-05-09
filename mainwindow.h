@@ -26,6 +26,8 @@ private slots:
     void handleAddTaskRequested(Course course);
     void handleEditCourseRequested(Course course);
     void showMascotPopup();
+    void onSearchCourseRequested(const QString& courseName);
+    void onSearchTaskRequested(int taskIndex);
 
 private:
     QStackedWidget *stack;
@@ -36,6 +38,7 @@ private:
     CourseDetailDrawer *courseDrawer = nullptr;
     MascotWidget *mascotWidget = nullptr;
     bool pagesInitialized = false;
+    QString searchCourseName;
 };
 
 #endif

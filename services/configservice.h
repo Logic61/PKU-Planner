@@ -33,6 +33,9 @@ public:
     QDate getSemesterEnd() const;
     void setSemesterEnd(const QDate& date);
 
+    QDate getLastSummaryDate() const;
+    void setLastSummaryDate(const QDate& date);
+
     int getCurrentWeek() const;
     bool isSingleWeek() const;
 
@@ -56,6 +59,7 @@ private:
     bool m_onboardingShown;
     QDate m_semesterStart;
     QDate m_semesterEnd;
+    QDate m_lastSummaryDate;
 };
 
 #endif

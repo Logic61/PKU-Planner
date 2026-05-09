@@ -8,6 +8,7 @@
 class QScrollArea;
 class QVBoxLayout;
 class QLabel;
+class EmptyStateWidget;
 
 class TodoPage : public QWidget
 {
@@ -18,6 +19,7 @@ public:
 
 public slots:
     void reloadTasks();
+    void highlightTask(int taskIndex);
 
 private:
     QComboBox *courseFilter = nullptr;
@@ -36,6 +38,7 @@ private:
     void applyFilter();
     void rebuildBoard();
     void editTaskByIndex(int sourceIndex);
+    EmptyStateWidget *emptyStateWidget = nullptr;
 };
 
 #endif

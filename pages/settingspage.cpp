@@ -2,6 +2,8 @@
 #include "../ui/theme.h"
 #include "../models/datamanager.h"
 #include "../services/configservice.h"
+#include "../dialogs/confirmdialog.h"
+#include "../components/toastwidget.h"
 #include <QLabel>
 #include <QGroupBox>
 #include <QFileDialog>
@@ -13,6 +15,8 @@
 #include <QStandardPaths>
 #include <QScrollArea>
 #include <QDateEdit>
+#include <QDir>
+#include <QCoreApplication>
 
 SettingsPage::SettingsPage(QWidget *parent)
     : QWidget(parent)
@@ -775,19 +779,24 @@ void SettingsPage::openDataFolder()
 
 void SettingsPage::clearAllData()
 {
-    QMessageBox::StandardButton reply = QMessageBox::warning(this,
-        "确认清空",
-        "确定要清空所有数据吗？此操作不可恢复！",
-        QMessageBox::Yes | QMessageBox::No);
-
-    if (reply == QMessageBox::Yes) {
-        QString appDataPath = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
-        QFile coursesFile(appDataPath + "/courses.json");
-        QFile tasksFile(appDataPath + "/tasks.json");
-        coursesFile.remove();
-        tasksFile.remove();
-        QMessageBox::information(this, "已清空", "所有数据已清空，请重启应用");
+    if (!ConfirmDialog::confirm(
+        this,
+        "清空所有数据",
+        "确定要清空所有数据吗？此操作不可恢复！\n所有课程和任务都将被删除。",
+        "清空",
+        true
+    )) {
+        return;
     }
+
+    QString dataPath = QCoreApplication::instance()
+        ? QCoreApplication::applicationDirPath()
+        : QDir::currentPath();
+    QFile coursesFile(QDir(dataPath).absoluteFilePath("courses.json"));
+    QFile tasksFile(QDir(dataPath).absoluteFilePath("tasks.json"));
+    coursesFile.remove();
+    tasksFile.remove();
+    ToastWidget::showToast(this, "所有数据已清空，请重启应用", 4000);
 }
 
 void SettingsPage::editSemester()

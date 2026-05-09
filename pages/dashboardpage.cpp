@@ -27,6 +27,9 @@
 #include "../dialogs/courseeditdialog.h"
 #include "../dialogs/courseactiondialog.h"
 #include "../dialogs/taskeditdialog.h"
+#include "../dialogs/confirmdialog.h"
+#include "../components/toastwidget.h"
+#include "../components/emptystatewidget.h"
 
 namespace {
 QString dayText(int day)
@@ -93,8 +96,8 @@ DashboardPage::DashboardPage(QWidget *parent)
     // Create a temporary empty layout to prevent nullptr access in updateDDLWidget()
     ddlLayout = new QVBoxLayout;
 
-    // === CRITICAL: Create grid BEFORE createTopBar() which calls renderCourses() ===
-    QWidget *gridContainer = new QWidget;
+    // === CRITICAL: Create gridContainer as class member before createTopBar() which calls updateWeekInfo() which calls renderCourses() ===
+    gridContainer = new QWidget;
     grid = new QGridLayout(gridContainer);
     grid->setSpacing(6);
 
@@ -114,6 +117,13 @@ DashboardPage::DashboardPage(QWidget *parent)
     courseTitle->setStyleSheet("font-weight:700; font-size:16px; color:#222;");
     courseLayout->addWidget(courseTitle);
 
+    emptyStateWidget = new EmptyStateWidget;
+    emptyStateWidget->setContent("📚", "还没有课程", "点击下方按钮添加第一门课程，开始规划你的学期");
+    emptyStateWidget->hide();
+    connect(emptyStateWidget, &EmptyStateWidget::buttonClicked, this, [this](){
+        createCourse(1, 1);
+    });
+    courseLayout->addWidget(emptyStateWidget);
     courseLayout->addWidget(gridContainer);
 
     contentLayout->addWidget(courseCard, 7); // 70%
@@ -664,6 +674,17 @@ void DashboardPage::renderCourses()
 
     const auto courses = DataManager::instance().courses();
 
+    if (courses.isEmpty()) {
+        if (emptyStateWidget) {
+            emptyStateWidget->show();
+            gridContainer->hide();
+        }
+    } else {
+        if (emptyStateWidget) {
+            emptyStateWidget->hide();
+            gridContainer->show();
+        }
+
     // 为了在课程表上显示同名课程的所有时段（每个时段独立占格），这里不再将同名课程合并为单个格子。
     for (int i = 0; i < courses.size(); ++i) {
         const Course &c = courses[i];
@@ -685,9 +706,19 @@ void DashboardPage::renderCourses()
         connect(cell, &CourseCellWidget::navigateToTodoPageRequested,
                 this, &DashboardPage::navigateToTodoPageRequested);
         connect(cell, &CourseCellWidget::deleteCourseRequested,
-                this, [this](int idx) { 
+                this, [this](int idx) {
                     if (idx >= 0) {
+                        if (!ConfirmDialog::confirm(
+                            this,
+                            "删除课程",
+                            "删除课程后，关联的任务也将被删除，是否继续？",
+                            "删除",
+                            true
+                        )) {
+                            return;
+                        }
                         DataManager::instance().deleteCourse(idx);
+                        ToastWidget::showToast(this, "课程已删除", 3000);
                     }
                 });
         connect(cell, &CourseCellWidget::addDDLRequested,
@@ -724,6 +755,7 @@ void DashboardPage::renderCourses()
             c.endPeriod - c.startPeriod + 1,
             1
         );
+    }
     }
 }
 
@@ -874,9 +906,16 @@ void DashboardPage::editCourse(int index)
                 }
         }
     } else if (actionDialog.deleteSelected()) {
-        QTimer::singleShot(0, qApp, [index]() {
+        if (ConfirmDialog::confirm(
+            this,
+            "删除课程",
+            "删除课程后，关联的任务也将被删除，是否继续？",
+            "删除",
+            true
+        )) {
             DataManager::instance().deleteCourse(index);
-        });
+            ToastWidget::showToast(this, "课程已删除", 3000);
+        }
     } else if (actionDialog.ddlSelected()) {
         TaskEditDialog taskDialog(this, c.name);
         if (taskDialog.exec() == QDialog::Accepted) {
@@ -984,7 +1023,7 @@ void DashboardPage::refreshCourseUrgency()
 QWidget* DashboardPage::createSuggestionCard()
 {
     QFrame *card = new QFrame;
-    card->setStyleSheet(QString("background:white; border-radius:20px;").arg(Theme::CARD_RADIUS));
+    card->setStyleSheet(QString("background:white; border-radius:%1px;").arg(Theme::CARD_RADIUS));
     QVBoxLayout *layout = new QVBoxLayout(card);
     layout->setContentsMargins(16, 14, 16, 14);
     layout->setSpacing(8);

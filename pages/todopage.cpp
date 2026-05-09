@@ -2,7 +2,9 @@
 #include "../models/datamanager.h"
 #include "../components/taskcardwidget.h"
 #include "../components/toastwidget.h"
+#include "../components/emptystatewidget.h"
 #include "../dialogs/taskeditdialog.h"
+#include "../dialogs/confirmdialog.h"
 #include "../ui/theme.h"
 
 #include <QVBoxLayout>
@@ -176,6 +178,23 @@ TodoPage::TodoPage(QWidget *parent)
     boardLayout->setSpacing(12);
     scrollArea->setWidget(boardWidget);
     mainLayout->addWidget(scrollArea, 1);
+
+    emptyStateWidget = new EmptyStateWidget;
+    emptyStateWidget->setContent("🎉", "今日没有待办", "去未名湖散步吧");
+    emptyStateWidget->hide();
+    connect(emptyStateWidget, &EmptyStateWidget::buttonClicked, this, [this](){
+        TaskEditDialog dialog(this, "");
+        if (dialog.exec() == QDialog::Accepted) {
+            Task t;
+            t.course = dialog.getCourseName();
+            t.title = dialog.getTitle();
+            t.deadline = dialog.getDeadline();
+            t.priority = dialog.getPriority();
+            t.completed = false;
+            DataManager::instance().addTask(t);
+        }
+    });
+    mainLayout->addWidget(emptyStateWidget, 1);
 
     // 先连接信号
     connect(&DataManager::instance(), &DataManager::coursesChanged, this, &TodoPage::refreshCourseFilter);
@@ -452,10 +471,18 @@ void TodoPage::applyFilter()
                 editTaskByIndex(sourceIndex);
             });
 
-            connect(card, &TaskCardWidget::deleted, this, [sourceIndex = item.sourceIndex](const Task &) {
-                QTimer::singleShot(0, qApp, [sourceIndex]() {
-                    DataManager::instance().deleteTask(sourceIndex);
-                });
+            connect(card, &TaskCardWidget::deleted, this, [this, sourceIndex = item.sourceIndex](const Task &) {
+                if (!ConfirmDialog::confirm(
+                    this,
+                    "删除任务",
+                    "删除后无法恢复，是否继续？",
+                    "删除",
+                    true
+                )) {
+                    return;
+                }
+                DataManager::instance().deleteTask(sourceIndex);
+                ToastWidget::showToast(this, "任务已删除", 3000);
             });
         }
 
@@ -523,14 +550,33 @@ void TodoPage::applyFilter()
             connect(card, &TaskCardWidget::edited, this, [this, sourceIndex = item.sourceIndex](const Task &) {
                 editTaskByIndex(sourceIndex);
             });
-            connect(card, &TaskCardWidget::deleted, this, [sourceIndex = item.sourceIndex](const Task &) {
-                QTimer::singleShot(0, qApp, [sourceIndex]() {
-                    DataManager::instance().deleteTask(sourceIndex);
-                });
+            connect(card, &TaskCardWidget::deleted, this, [this, sourceIndex = item.sourceIndex](const Task &) {
+                if (!ConfirmDialog::confirm(
+                    this,
+                    "删除任务",
+                    "删除后无法恢复，是否继续？",
+                    "删除",
+                    true
+                )) {
+                    return;
+                }
+                DataManager::instance().deleteTask(sourceIndex);
+                ToastWidget::showToast(this, "任务已删除", 3000);
             });
         }
 
         boardLayout->addWidget(completedBody);
+    }
+
+    const bool hasAnyTask = !overdue.isEmpty() || !today.isEmpty() || !week.isEmpty() || !later.isEmpty() || !completed.isEmpty();
+    if (emptyStateWidget) {
+        if (hasAnyTask) {
+            emptyStateWidget->hide();
+            scrollArea->show();
+        } else {
+            emptyStateWidget->show();
+            scrollArea->hide();
+        }
     }
 
     boardLayout->addStretch();
@@ -557,4 +603,9 @@ void TodoPage::editTaskByIndex(int sourceIndex)
         updated.completed = dialog.getCompleted();
         DataManager::instance().updateTask(sourceIndex, updated);
     }
+}
+
+void TodoPage::highlightTask(int taskIndex)
+{
+    refreshTasks();
 }

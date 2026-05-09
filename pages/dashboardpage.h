@@ -14,6 +14,7 @@ class QProgressBar;
 class QPushButton;
 class QTimer;
 class QHBoxLayout;
+class EmptyStateWidget;
 
 class DashboardPage : public QWidget
 {
@@ -41,6 +42,7 @@ private:
     int getNearestDDL(const QString& courseName);
     
     QGridLayout *grid;
+    QWidget *gridContainer;
 
     QLabel *weekLabel;
     QLabel *timeLabel;
@@ -63,6 +65,8 @@ private:
     void updateDDLWidget();
     void updateWeekInfo();
     QWidget* createSuggestionCard();
+    
+    EmptyStateWidget *emptyStateWidget = nullptr;
 };
 
 #endif

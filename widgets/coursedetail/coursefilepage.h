@@ -7,6 +7,7 @@
 class QLabel;
 class QListWidget;
 class QPushButton;
+class EmptyStateWidget;
 
 class CourseFilePage : public QWidget
 {
@@ -36,6 +37,7 @@ private:
     void openFolder();
     void createNote();
     void showRecordingPlaceholder();
+    EmptyStateWidget* emptyStateWidget = nullptr;
 };
 
 #endif // COURSEFILEPAGE_H

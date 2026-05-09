@@ -2,6 +2,8 @@
 #define TOPBARWIDGET_H
 
 #include <QWidget>
+#include <QLineEdit>
+#include "../widgets/search/searchpopup.h"
 
 class TopbarWidget : public QWidget
 {
@@ -9,6 +11,28 @@ class TopbarWidget : public QWidget
 
 public:
     explicit TopbarWidget(QWidget *parent = nullptr);
+    ~TopbarWidget();
+
+signals:
+    void searchCourseRequested(const QString& courseName);
+    void searchTaskRequested(int taskIndex);
+    void fileSelected(const QString& filePath);
+
+public:
+    QLineEdit* getSearchEdit() const;
+
+private slots:
+    void onSearchTextChanged(const QString& text);
+    void onSearchReturned();
+    void onCourseSelected(const QString& courseName);
+    void onTaskSelected(int taskIndex);
+    void onFileSelected(const QString& filePath);
+
+private:
+    void positionPopup();
+
+    QLineEdit *searchEdit;
+    SearchPopup *searchPopup;
 };
 
 #endif

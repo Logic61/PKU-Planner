@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QDir>
 #include <QDebug>
+#include <QSaveFile>
 
 DataManager& DataManager::instance()
 {
@@ -14,8 +15,7 @@ DataManager& DataManager::instance()
 
 DataManager::DataManager() : QObject(nullptr)
 {
-    // 在构造函数中加载数据
-    qDebug() << "[DataManager] Constructor called, loading data";
+    qDebug() << "[DataManager] Constructor called";
     m_storageDir = QCoreApplication::instance() ? QCoreApplication::applicationDirPath() : QDir::currentPath();
     load();
     qDebug() << "[DataManager] Data loaded, courses:" << m_courses.size() << "tasks:" << m_tasks.size();
@@ -74,9 +74,19 @@ void DataManager::updateCourse(int index, const Course& c)
 void DataManager::deleteCourse(int index)
 {
     if (index >= 0 && index < m_courses.size()) {
+        QString courseName = m_courses[index].name;
         m_courses.removeAt(index);
+        
+        for (int i = m_tasks.size() - 1; i >= 0; --i) {
+            if (m_tasks[i].course == courseName) {
+                m_tasks.removeAt(i);
+            }
+        }
+        
         emit coursesChanged();
+        emit tasksChanged();
         saveCourses();
+        saveTasks();
     }
 }
 
@@ -284,32 +294,20 @@ bool DataManager::saveTasks()
 
 bool DataManager::loadFromFile(const QString& filename, QJsonDocument& doc)
 {
-    QStringList candidates;
-    candidates << filename;
-    candidates << QDir::current().absoluteFilePath(filename);
-    const QString appDir = m_storageDir.isEmpty()
-        ? (QCoreApplication::instance() ? QCoreApplication::applicationDirPath() : QDir::currentPath())
-        : m_storageDir;
-    candidates << QDir(appDir).absoluteFilePath(filename);
-    candidates << QDir(appDir).absoluteFilePath("../" + filename);
+    QString dataDir = QCoreApplication::instance()
+        ? QCoreApplication::applicationDirPath()
+        : QDir::currentPath();
+    QString fullPath = QDir(dataDir).absoluteFilePath(filename);
 
-    QFile file;
-    QString usedPath;
-    for (const QString &p : candidates) {
-        file.setFileName(p);
-        if (file.exists()) {
-            usedPath = p;
-            break;
-        }
-    }
+    QFile file(fullPath);
 
-    if (usedPath.isEmpty()) {
-        qWarning() << "文件不存在（尝试路径）:" << candidates;
+    if (!file.exists()) {
+        qWarning() << "[DataManager] File does not exist:" << fullPath;
         return false;
     }
 
     if (!file.open(QIODevice::ReadOnly)) {
-        qWarning() << "无法打开文件:" << usedPath;
+        qWarning() << "[DataManager] Cannot open file:" << fullPath;
         return false;
     }
 
@@ -320,63 +318,41 @@ bool DataManager::loadFromFile(const QString& filename, QJsonDocument& doc)
     doc = QJsonDocument::fromJson(data, &error);
 
     if (error.error != QJsonParseError::NoError || doc.isNull()) {
-        qWarning() << "JSON解析错误:" << error.errorString() << "在文件:" << usedPath;
+        qWarning() << "[DataManager] JSON parse error:" << error.errorString() << "in file:" << fullPath;
+        
+        QString backupPath = fullPath + "." + QDateTime::currentDateTime().toString("yyyyMMdd_hhmmss") + ".corrupted";
+        QFile::copy(fullPath, backupPath);
+        qDebug() << "[DataManager] Backed up corrupted file to:" << backupPath;
+        qWarning() << "[DataManager] JSON parse error, file corrupted";
+        
         return false;
     }
 
-    qDebug() << "成功从文件加载:" << usedPath;
+    qDebug() << "[DataManager] Successfully loaded from:" << fullPath;
     return true;
 }
 
 bool DataManager::saveToFile(const QString& filename, const QJsonDocument& doc)
 {
-    // 优先将数据写到应用程序目录下，确保运行时读取/写入路径一致
-    const QString appDir = m_storageDir.isEmpty() ? QDir::currentPath() : m_storageDir;
-    QString target = QDir(appDir).absoluteFilePath(filename);
-    QString tempFile = target + ".tmp";
-    QString backupFile = target + ".bak";
+    QString dataDir = m_storageDir.isEmpty()
+        ? QCoreApplication::applicationDirPath()
+        : m_storageDir;
+    QString target = QDir(dataDir).absoluteFilePath(filename);
 
-    // 1. 如果存在原文件，先备份
-    if (QFile::exists(target)) {
-        if (QFile::exists(backupFile)) {
-            QFile::remove(backupFile);
-        }
-        QFile::copy(target, backupFile);
-    }
-
-    // 2. 写入临时文件
-    QFile file(tempFile);
+    QSaveFile file(target);
     if (!file.open(QIODevice::WriteOnly)) {
-        qWarning() << "无法创建临时文件:" << tempFile;
+        qWarning() << "[DataManager] Cannot open file for writing:" << target;
         return false;
     }
 
-    qint64 bytesWritten = file.write(doc.toJson());
-    if (!file.flush()) {
-        qWarning() << "刷新文件失败:" << tempFile;
-        file.close();
-        QFile::remove(tempFile);
-        return false;
-    }
-    file.close();
+    file.write(doc.toJson(QJsonDocument::Indented));
 
-    if (bytesWritten == -1) {
-        qWarning() << "写入文件失败:" << tempFile;
-        QFile::remove(tempFile);
+    if (!file.commit()) {
+        qWarning() << "[DataManager] Failed to commit file:" << target;
         return false;
     }
 
-    // 3. 将临时文件重命名为正式文件
-    if (QFile::exists(target)) {
-        QFile::remove(target);
-    }
-
-    if (!QFile::rename(tempFile, target)) {
-        qWarning() << "重命名文件失败:" << tempFile << "->" << target;
-        return false;
-    }
-
-    qDebug() << "成功保存文件:" << target;
+    qDebug() << "[DataManager] Successfully saved:" << target;
     return true;
 }
 

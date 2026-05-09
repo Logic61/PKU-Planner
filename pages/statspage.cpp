@@ -3,6 +3,7 @@
 #include "../models/task.h"
 #include "../models/course.h"
 #include "../ui/theme.h"
+#include "../components/emptystatewidget.h"
 #include <QVBoxLayout>
 #include <QHBoxLayout>
 #include <QLabel>
@@ -134,6 +135,11 @@ StatsPage::StatsPage(QWidget *parent)
     suggestLayout->addLayout(suggestContainer);
     root->addWidget(suggestCard);
 
+    emptyStateWidget = new EmptyStateWidget;
+    emptyStateWidget->setContent("📊", "暂无统计数据", "完成任务后这里将生成学习分析");
+    emptyStateWidget->hide();
+    root->addWidget(emptyStateWidget, 1);
+
     refresh();
 
     connect(&DataManager::instance(), &DataManager::tasksChanged, this, &StatsPage::refresh);
@@ -156,6 +162,10 @@ void StatsPage::refresh()
         return;
     }
 
+    if (emptyStateWidget) {
+        emptyStateWidget->hide();
+    }
+
     updateSummary(tasks);
     updateRanking(tasks);
     updateHeatmap(tasks);
@@ -165,6 +175,10 @@ void StatsPage::refresh()
 
 void StatsPage::updateEmptyState()
 {
+    if (emptyStateWidget) {
+        emptyStateWidget->show();
+    }
+
     QLabel* totalVal = cardTotal->findChild<QLabel*>("value");
     QLabel* doneVal = cardDone->findChild<QLabel*>("value");
     QLabel* onTimeVal = cardOnTime->findChild<QLabel*>("value");
@@ -178,18 +192,6 @@ void StatsPage::updateEmptyState()
     clearLayout(heatGrid);
     clearLayout(trendContainer);
     clearLayout(suggestContainer);
-
-    QLabel* empty = new QLabel("暂无任务数据");
-    empty->setStyleSheet("color:#999;font-size:13px;padding:20px;");
-    rankContainer->addWidget(empty);
-
-    QLabel* empty2 = new QLabel("暂无DDL数据");
-    empty2->setStyleSheet("color:#999;font-size:13px;padding:20px;");
-    heatGrid->addWidget(empty2, 0, 0);
-
-    QLabel* empty3 = new QLabel("暂无完成记录");
-    empty3->setStyleSheet("color:#999;font-size:13px;padding:20px;");
-    trendContainer->addWidget(empty3);
 }
 
 void StatsPage::clearLayout(QLayout* layout)

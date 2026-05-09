@@ -8,6 +8,8 @@ class QFrame;
 class QLabel;
 class QProgressBar;
 class QGridLayout;
+class QScrollArea;
+class EmptyStateWidget;
 class Task;
 class Course;
 
@@ -36,6 +38,9 @@ private:
     QGridLayout* heatGrid;
     QHBoxLayout* trendContainer;
     QVBoxLayout* suggestContainer;
+    QWidget* contentWidget;
+    QScrollArea* scrollArea;
+    EmptyStateWidget* emptyStateWidget = nullptr;
 };
 
 #endif // STATSPAGE_H

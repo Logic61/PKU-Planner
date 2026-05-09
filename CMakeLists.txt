@@ -93,6 +93,20 @@ set(PROJECT_SOURCES
     services/mascotstateservice.cpp
     services/mascotstateservice.h
     models/mascotstate.h
+    services/dataservice.cpp
+    services/dataservice.h
+    services/exportservice.cpp
+    services/exportservice.h
+    services/searchservice.cpp
+    services/searchservice.h
+    services/weeklysummaryservice.cpp
+    services/weeklysummaryservice.h
+    dialogs/confirmdialog.cpp
+    dialogs/confirmdialog.h
+    widgets/search/searchpopup.cpp
+    widgets/search/searchpopup.h
+    widgets/dialogs/weeklysummarydialog.cpp
+    widgets/dialogs/weeklysummarydialog.h
 )
 
 qt_add_executable(PKUPlanner

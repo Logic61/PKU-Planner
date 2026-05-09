@@ -1,5 +1,6 @@
 #include "coursefilepage.h"
 #include "../../ui/theme.h"
+#include "../../components/emptystatewidget.h"
 
 #include <QDateTime>
 #include <QDesktopServices>
@@ -145,6 +146,12 @@ CourseFilePage::CourseFilePage(QWidget* parent)
     recentLayout->addWidget(fileList);
     root->addWidget(recentCard, 1);
 
+    emptyStateWidget = new EmptyStateWidget;
+    emptyStateWidget->setContent("📁", "暂无课程资料", "绑定文件夹或拖入文件开始使用");
+    emptyStateWidget->hide();
+    connect(emptyStateWidget, &EmptyStateWidget::buttonClicked, this, &CourseFilePage::bindFolder);
+    root->addWidget(emptyStateWidget);
+
     connect(bindFolderBtn, &QPushButton::clicked, this, &CourseFilePage::bindFolder);
     connect(openFolderBtn, &QPushButton::clicked, this, &CourseFilePage::openFolder);
     connect(newNoteBtn, &QPushButton::clicked, this, &CourseFilePage::createNote);
@@ -169,20 +176,34 @@ void CourseFilePage::refreshFileList()
     fileList->clear();
 
     const QString folderPath = currentCourse.folderPath.trimmed();
+    
+    if (emptyStateWidget) {
+        emptyStateWidget->hide();
+    }
+    fileList->show();
+    
     if (folderPath.isEmpty()) {
+        fileList->setMaximumHeight(100);
         QListWidgetItem* item = new QListWidgetItem("尚未选择课程资料目录");
         item->setFlags(Qt::NoItemFlags);
+        item->setTextAlignment(Qt::AlignCenter);
+        item->setForeground(QColor(Theme::TEXT_TERTIARY));
         fileList->addItem(item);
         return;
     }
 
     QDir dir(folderPath);
     if (!dir.exists()) {
+        fileList->setMaximumHeight(100);
         QListWidgetItem* item = new QListWidgetItem("目录不存在，请重新绑定");
         item->setFlags(Qt::NoItemFlags);
+        item->setTextAlignment(Qt::AlignCenter);
+        item->setForeground(QColor(Theme::TEXT_TERTIARY));
         fileList->addItem(item);
         return;
     }
+
+    fileList->setMaximumHeight(9999);
 
     // 递归收集所有文件并按修改时间排序
     QList<QPair<QFileInfo, QString>> allFiles; // (QFileInfo, relative path from base dir)
@@ -222,9 +243,11 @@ void CourseFilePage::refreshFileList()
     }
 
     if (allFiles.isEmpty()) {
-        QListWidgetItem* item = new QListWidgetItem("暂无文件");
-        item->setFlags(Qt::NoItemFlags);
-        fileList->addItem(item);
+        fileList->hide();
+        if (emptyStateWidget) {
+            emptyStateWidget->setContent("📁", "目录为空", "此目录暂无文件，点击按钮选择其他目录");
+            emptyStateWidget->show();
+        }
     }
 }
 

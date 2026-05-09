@@ -16,6 +16,8 @@
 
 #include "../../components/taskcardwidget.h"
 #include "../../dialogs/taskeditdialog.h"
+#include "../../dialogs/confirmdialog.h"
+#include "../../components/toastwidget.h"
 #include "../../models/datamanager.h"
 
 namespace {
@@ -238,6 +240,15 @@ void CourseTaskPage::renderTasks()
             openEditTaskDialog(sourceIndex);
         });
         connect(card, &TaskCardWidget::deleted, this, [this, sourceIndex = item.sourceIndex](const Task&) {
+            if (!ConfirmDialog::confirm(
+                this,
+                "删除任务",
+                "删除后无法恢复，是否继续？",
+                "删除",
+                true
+            )) {
+                return;
+            }
             DataManager::instance().deleteTask(sourceIndex);
             emit taskUpdated();
         });
