@@ -31,6 +31,9 @@ jobs:
         shell: powershell
 
       - name: Build and run unit tests
+        env:
+          QT_DIR: C:\Qt\6.6\msvc2022_64
+          CMAKE_PREFIX_PATH: C:\Qt\6.6\msvc2022_64
         run: |
           .\run_build.bat
         shell: cmd
