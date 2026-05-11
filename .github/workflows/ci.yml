@@ -26,14 +26,12 @@ jobs:
       - name: Install Qt
         uses: jurplel/install-qt-action@v3
         with:
-          # 使用 6.6.2，这是一个非常稳定的点版本
           version: '6.6.2'
           host: 'windows'
           target: 'desktop'
-          # 修正架构名：去掉前面的 win64_，直接使用编译器标识
-          arch: 'msvc2022_64'
-          # 强制指定模块，确保 qtbase 这种核心组件一定被包含
-          modules: 'qtcharts qtquickcontrols2'
+          arch: 'win64_msvc2022_64'          # 关键：使用正确的完整架构名
+          modules: 'qtcharts'                 # 只写需要的额外模块，不要写 qt_base 和 qtquickcontrols2
+          dir: 'D:/a/PKU-Planner-Vibe-Version/Qt'
 
       # 3. 运行你的编译脚本
       - name: Build and run unit tests
