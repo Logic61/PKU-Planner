@@ -4,9 +4,21 @@
 # Scans common Qt installation paths and auto-detects Qt6.
 # Priority: QT_ROOT env > C:/Qt > D:/Qt > (sorted by version desc)
 # Supports: mingw_64, msvc2022_64, and other architectures.
+#
+# If Qt6_DIR is already set (e.g. by CI's install-qt-action), this module
+# sets Qt6_DIR as a CMake cache variable and returns immediately.
 # =============================================================================
 
-set(_DEBUG_FIND_QT_AUTO OFF)
+if(Qt6_DIR AND EXISTS "${Qt6_DIR}/Qt6Config.cmake")
+    message(STATUS "[FindQtAuto] Qt6_DIR already set to: ${Qt6_DIR}, skipping auto-discovery.")
+    return()
+endif()
+
+if(DEFINED ENV{QT6_DIR} AND EXISTS "$ENV{QT6_DIR}/Qt6Config.cmake")
+    message(STATUS "[FindQtAuto] QT6_DIR env is set to: $ENV{QT6_DIR}, using it.")
+    set(Qt6_DIR "$ENV{QT6_DIR}" CACHE PATH "Qt6 CMake directory" FORCE)
+    return()
+endif()
 
 # -----------------------------------------------------------------------------
 # 1. Candidate roots (order matters)
@@ -126,20 +138,6 @@ foreach(_root ${_QT_CANDIDATE_ROOTS})
     endif()
 endforeach()
 
-if(Qt6_DIR OR $ENV{QT6_DIR})
-    message(STATUS "[FindQtAuto] Qt6_DIR already set (CI setup detected), skipping auto-discovery.")
-    set(Qt6_DIR "$ENV{QT6_DIR}" CACHE PATH "Qt6 CMake directory" FORCE)
-    return()
-endif()
-
-if(Qt6_FOUND OR DEFINED Qt6_FOUND)
-    message(STATUS "[FindQtAuto] Qt6 already found, skipping auto-discovery.")
-    return()
-endif()
-
-# -----------------------------------------------------------------------------
-# 5. Fail with a clear message (instead of CMake's cryptic "not found")
-# -----------------------------------------------------------------------------
 if(NOT _QT6_FOUND_DIR)
     message(FATAL_ERROR
         "[FindQtAuto] Qt6 not found.\n"
