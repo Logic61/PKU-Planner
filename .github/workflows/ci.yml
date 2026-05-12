@@ -1,4 +1,4 @@
-name: CI-Stable-Qt
+name: CI
 
 on:
   push:
@@ -10,59 +10,20 @@ jobs:
   build:
     runs-on: windows-2022
 
-    env:
-      QT_VERSION: 6.6.2
-      QT_DIR: C:\Qt\6.6.2\msvc2022_64
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # =========================
-      # 1. Cache Qt（核心）
-      # =========================
-      - name: Cache Qt
-        id: cache-qt
-        uses: actions/cache@v4
-        with:
-          path: C:\Qt
-          key: qt-${{ env.QT_VERSION }}-msvc2022
-
-      # =========================
-      # 2. 如果没有缓存 → 下载 Qt（只做一次）
-      # =========================
-      - name: Install Qt (only if cache miss)
-        if: steps.cache-qt.outputs.cache-hit != 'true'
-        run: |
-          mkdir C:\Qt
-          curl -L -o qt.zip https://download.qt.io/official_releases/qt/6.6/6.6.2/qt-opensource-windows-x86-6.6.2.exe
-          echo "👉 注意：这里建议你换成你自己的 Qt installer 或 internal mirror"
-          echo "👉 或直接用预构建 zip（更推荐）"
-
-      # =========================
-      # 3. MSVC
-      # =========================
-      - name: Setup MSVC
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
-
-      # =========================
-      # 4. Build
-      # =========================
-      - name: Build project
+      - name: Configure
         shell: cmd
-        run: |
-          set QT_DIR=%QT_DIR%
-          set CMAKE_PREFIX_PATH=%QT_DIR%
-          echo Using Qt at %QT_DIR%
-          call run_build.bat
+        run: cmake -S . -B build -G "MinGW Makefiles"
 
-      # =========================
-      # 5. Upload artifact
-      # =========================
-      - name: Upload build
+      - name: Build
+        shell: cmd
+        run: cmake --build build --config Release
+
+      - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: app
-          path: build\
+          name: PKUPlanner-${{ github.sha }}
+          path: build/PKUPlanner.exe
