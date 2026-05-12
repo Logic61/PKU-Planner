@@ -1,28 +1,44 @@
-name: CI-Lite
+name: CI-Minimal
 
 on:
   push:
     branches: [ "**" ]
   pull_request:
-    branches: [ main, master, dev ]
+    branches: [ main, dev ]
 
 jobs:
-  test-core:
-    runs-on: ubuntu-latest
+  build:
+    runs-on: windows-2022
 
     steps:
-      - name: Checkout
+      - name: Checkout repository
         uses: actions/checkout@v4
+
+      - name: Set up MSVC
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      - name: Install dependencies
+      - name: Install Qt
         run: |
-          pip install -r requirements.txt
+          python -m pip install aqtinstall
+          python -m aqt install-qt windows desktop 6.6.2 win64_msvc2022_64 `
+            --outputdir D:/Qt
 
-      - name: Run core tests
+      - name: Build project
+        shell: cmd
         run: |
-          python -m unittest discover tests
+          set QT_DIR=D:\Qt\6.6.2\msvc2022_64
+          set CMAKE_PREFIX_PATH=%QT_DIR%
+          call run_build.bat
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-output
+          path: build\
