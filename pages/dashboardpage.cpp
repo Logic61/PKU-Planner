@@ -96,6 +96,10 @@ DashboardPage::DashboardPage(IConfigProvider *configProvider, QWidget *parent)
     grid = new QGridLayout(gridContainer);
     grid->setSpacing(6);
 
+    // Initial week info from config provider (must be before createTopBar which calls updateWeekInfo)
+    realWeek = m_configProvider->getCurrentWeek();
+    currentWeek = realWeek;
+
     // ===== 1. 顶部学期控制栏 =====
     mainLayout->addWidget(createTopBar());
 
@@ -250,7 +254,6 @@ DashboardPage::DashboardPage(IConfigProvider *configProvider, QWidget *parent)
     connect(&ConfigService::instance(), &ConfigService::configChanged, this, [this](){ updateWeekInfo(false); });
 
     // Initial week info from config provider
-    realWeek = m_configProvider->getCurrentWeek();
     updateWeekInfo(false);
 }
 
@@ -320,6 +323,8 @@ void DashboardPage::updateWeekInfo(bool useCurrentWeek)
 {
     if (useCurrentWeek) {
         currentWeek = ConfigService::instance().getCurrentWeek();
+    } else if (currentWeek <= 0) {
+        currentWeek = realWeek;
     }
 
     int maxWeek = 18;
@@ -421,12 +426,11 @@ void DashboardPage::updateBottomStats()
     const QList<Course> courses = DataManager::instance().courses();
     const QList<Task> tasks = DataManager::instance().tasks();
     const QDate today = QDate::currentDate();
-    const int currentWeekday = today.dayOfWeek();
 
     int currentYear = 0;
     const int displayWeek = currentWeek;
-    const bool isSingle = displayWeek % 2 == 1;
-    const int displayWeekday = (isSingle || displayWeek == realWeek) ? today.dayOfWeek() : 1;
+    const bool isSingle = realWeek % 2 == 1;
+    const int displayWeekday = today.dayOfWeek();
 
     int todayCourseCount = 0;
     for (const Course &course : courses) {
@@ -491,8 +495,8 @@ void DashboardPage::updateTodayCourses()
     const QList<Course> courses = DataManager::instance().courses();
     const QDate today = QDate::currentDate();
     const int displayWeek = currentWeek;
-    const bool isSingle = displayWeek % 2 == 1;
-    const int displayWeekday = (isSingle || displayWeek == realWeek) ? today.dayOfWeek() : 1;
+    const bool isSingle = realWeek % 2 == 1;
+    const int displayWeekday = today.dayOfWeek();
 
     const QTime now = QTime::currentTime();
 
@@ -505,8 +509,8 @@ void DashboardPage::updateTodayCourses()
 
     for (const Course &course : courses) {
         if (course.day != displayWeekday) continue;
-        if (course.weekType == 1 && displayWeek % 2 == 0) continue;
-        if (course.weekType == 2 && displayWeek % 2 == 1) continue;
+        if (course.weekType == 1 && realWeek % 2 == 0) continue;
+        if (course.weekType == 2 && realWeek % 2 == 1) continue;
         if (course.startPeriod <= 0) continue;
 
         todayCourses.append({course.startPeriod, course.name, course.location});

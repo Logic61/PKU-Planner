@@ -53,8 +53,8 @@ private:
     QLabel *timeLabel;
     QProgressBar *semesterProgress;
 
-    int currentWeek = 9;
-    int realWeek = 9;
+    int currentWeek = 0;
+    int realWeek = 0;
 
     void initGrid();
     QWidget* createTopBar();
