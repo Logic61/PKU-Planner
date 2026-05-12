@@ -7,6 +7,7 @@
 #include <QDate>
 #include <QDebug>
 #include "mainwindow.h"
+#include "services/configservice.h"
 
 static void ensureDataFiles()
 {
@@ -48,7 +49,7 @@ int main(int argc, char *argv[])
 
     ensureDataFiles();
 
-    MainWindow w;
+    MainWindow w(&ConfigService::instance());
     w.setWindowTitle("Course Helper");
     w.show();
     return a.exec();

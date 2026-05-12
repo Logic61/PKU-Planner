@@ -3,7 +3,7 @@
 
 #include <QWidget>
 #include <QVBoxLayout>
-
+#include "../services/iconfigprovider.h"
 #include "../models/course.h"
 #include "../models/task.h"
 #include <vector>
@@ -15,13 +15,16 @@ class QPushButton;
 class QTimer;
 class QHBoxLayout;
 class EmptyStateWidget;
+#include <QNetworkReply>
+#include <QNetworkAccessManager>
+#include <QProgressDialog>
 
 class DashboardPage : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit DashboardPage(QWidget *parent = nullptr);
+    explicit DashboardPage(IConfigProvider *configProvider, QWidget *parent = nullptr);
 
 public slots:
     void createCourse(int row, int col);
@@ -37,12 +40,12 @@ signals:
     void openCourseDetail(const Course& course);
 
 private:
-    // std::vector<Course> courses; Removed and handled by DataManager
+    IConfigProvider *m_configProvider; // not owned
 
     void renderCourses();
-    
+
     int getNearestDDL(const QString& courseName);
-    
+
     QGridLayout *grid;
     QWidget *gridContainer;
 
@@ -58,7 +61,7 @@ private:
     QWidget* createBottomStats();
     QWidget* createRightPanel();
     void updateBottomStats();
-    
+
     QVBoxLayout *ddlLayout;
     QVBoxLayout *todayCourseLayout = nullptr;
     QLabel *todayCourseValue = nullptr;
@@ -69,6 +72,12 @@ private:
     void updateTodayCourses();
     void updateWeekInfo(bool useCurrentWeek = false);
     QWidget* createSuggestionCard();
+
+    void importFromImage();
+    void callGeminiAPI(const QString& apiKey, const QByteArray& imageData);
+    void onGeminiReplyFinished(QNetworkReply* reply);
+    QNetworkAccessManager* m_networkManager = nullptr;
+    QProgressDialog* m_loadingDialog = nullptr;
 };
 
 #endif

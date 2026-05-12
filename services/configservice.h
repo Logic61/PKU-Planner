@@ -4,8 +4,9 @@
 #include <QObject>
 #include <QString>
 #include <QDate>
+#include "iconfigprovider.h"
 
-class ConfigService : public QObject
+class ConfigService : public QObject, public IConfigProvider
 {
     Q_OBJECT
 
@@ -43,6 +44,8 @@ public:
     void resetAllData();
 
     QString getDataPath() const;
+
+    void onConfigChanged() override { emit configChanged(); }
 
 signals:
     void configChanged();

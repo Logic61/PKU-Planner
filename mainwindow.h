@@ -12,14 +12,15 @@ class DashboardPage;
 class TodoPage;
 class CourseDetailDrawer;
 class MascotWidget;
+class IConfigProvider;
 #include "models/course.h"
+#include "services/iconfigprovider.h"
 
 class MainWindow : public QMainWindow
 {
     Q_OBJECT
-
 public:
-    MainWindow(QWidget *parent = nullptr);
+    MainWindow(IConfigProvider *configProvider, QWidget *parent = nullptr);
 
 protected:
     bool eventFilter(QObject *obj, QEvent *event) override;
@@ -46,6 +47,7 @@ private:
     QShortcut *searchShortcut = nullptr;
     bool pagesInitialized = false;
     QString searchCourseName;
+    IConfigProvider *m_configProvider = nullptr; // not owned
 };
 
 #endif

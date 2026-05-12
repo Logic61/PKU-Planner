@@ -29,8 +29,8 @@
 #include <QDebug>
 #include <QApplication>
 
-MainWindow::MainWindow(QWidget *parent)
-    : QMainWindow(parent)
+MainWindow::MainWindow(IConfigProvider *configProvider, QWidget *parent)
+    : QMainWindow(parent), m_configProvider(configProvider)
 {
     // 设置初始窗口大小
     resize(1200, 800);
@@ -102,7 +102,7 @@ void MainWindow::initPages()
     delete oldPage2;
     delete oldPage3;
 
-    dashboardPage = new DashboardPage;
+    dashboardPage = new DashboardPage(m_configProvider);
     todoPage = new TodoPage;
     stack->insertWidget(0, dashboardPage);
     stack->insertWidget(1, todoPage);

@@ -18,6 +18,14 @@
 #include "../utils/datetimeutils.h"
 
 #include <QStackedWidget>
+#include <QInputDialog>
+#include <QLineEdit>
+#include <QNetworkAccessManager>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QJsonArray>
+#include <QFile>
+#include <QBuffer>
 #include <QScrollArea>
 #include <QVBoxLayout>
 #include <QHBoxLayout>
@@ -61,8 +69,8 @@ void applyShadow(QWidget* w)
 }
 }
 
-DashboardPage::DashboardPage(QWidget *parent)
-    : QWidget(parent)
+DashboardPage::DashboardPage(IConfigProvider *configProvider, QWidget *parent)
+    : QWidget(parent), m_configProvider(configProvider)
 {
     // ===== 创建滚动区域 =====
     QScrollArea *scrollArea = new QScrollArea(this);
@@ -238,11 +246,11 @@ DashboardPage::DashboardPage(QWidget *parent)
     connect(&DataManager::instance(), &DataManager::tasksChanged, this, &DashboardPage::updateBottomStats);
     connect(&DataManager::instance(), &DataManager::tasksChanged, this, &DashboardPage::updateDDLWidget);
 
-    // Connect to ConfigService for semester changes
+    // Connect to config provider for semester changes
     connect(&ConfigService::instance(), &ConfigService::configChanged, this, [this](){ updateWeekInfo(false); });
 
-    // Initial week info from ConfigService
-    realWeek = ConfigService::instance().getCurrentWeek();
+    // Initial week info from config provider
+    realWeek = m_configProvider->getCurrentWeek();
     updateWeekInfo(false);
 }
 
@@ -315,8 +323,8 @@ void DashboardPage::updateWeekInfo(bool useCurrentWeek)
     }
 
     int maxWeek = 18;
-    QDate startDate = ConfigService::instance().getSemesterStart();
-    QDate endDate = ConfigService::instance().getSemesterEnd();
+    QDate startDate = m_configProvider->getSemesterStart();
+    QDate endDate = m_configProvider->getSemesterEnd();
     if (startDate.isValid() && endDate.isValid()) {
         maxWeek = qMax(1, startDate.daysTo(endDate) / 7);
     }
@@ -1303,6 +1311,25 @@ QWidget* DashboardPage::createSuggestionCard()
 
 void DashboardPage::importSchedule()
 {
+    QMessageBox msgBox(this);
+    msgBox.setWindowTitle("导入课表");
+    msgBox.setText("请选择导入方式：");
+    msgBox.setIcon(QMessageBox::Question);
+
+    QPushButton *imageBtn = msgBox.addButton("图片导入", QMessageBox::ActionRole);
+    QPushButton *csvBtn = msgBox.addButton("CSV/TXT导入", QMessageBox::ActionRole);
+    QPushButton *cancelBtn = msgBox.addButton("取消", QMessageBox::RejectRole);
+
+    msgBox.exec();
+
+    if (msgBox.clickedButton() == imageBtn) {
+        importFromImage();
+        return;
+    } else if (msgBox.clickedButton() == csvBtn) {
+    } else {
+        return;
+    }
+
     QString fileName = QFileDialog::getOpenFileName(this, "导入课表",
         QString(),
         "课表文件 (*.txt *.csv *.json);;所有文件 (*)");
@@ -1434,4 +1461,279 @@ void DashboardPage::parseTimeString(const QString& timeStr, Course& c)
         c.startPeriod = 1;
         c.endPeriod = 2;
     }
+}
+
+void DashboardPage::importFromImage()
+{
+    QString fileName = QFileDialog::getOpenFileName(this, "选择图片",
+        QString(),
+        "图片文件 (*.png *.jpg *.jpeg);;所有文件 (*)");
+
+    if (fileName.isEmpty()) {
+        return;
+    }
+
+    bool ok;
+    QString apiKey = QInputDialog::getText(this, "Gemini API Key",
+        "请输入 Gemini API Key:", QLineEdit::Password, "", &ok);
+
+    if (!ok || apiKey.isEmpty()) {
+        QMessageBox::warning(this, "导入失败", "未输入 API Key");
+        return;
+    }
+
+    QFile file(fileName);
+    if (!file.open(QIODevice::ReadOnly)) {
+        QMessageBox::warning(this, "导入失败", "无法读取图片文件");
+        return;
+    }
+
+    QByteArray imageData = file.readAll();
+    file.close();
+
+    m_loadingDialog = new QProgressDialog("正在识别课程表...\n这可能需要几秒钟", QString(), 0, 0, this);
+    m_loadingDialog->setWindowTitle("处理中");
+    m_loadingDialog->setWindowModality(Qt::WindowModal);
+    m_loadingDialog->setCancelButton(nullptr);
+    m_loadingDialog->setMinimumDuration(0);
+    m_loadingDialog->show();
+
+    callGeminiAPI(apiKey, imageData);
+}
+
+void DashboardPage::callGeminiAPI(const QString& apiKey, const QByteArray& imageData)
+{
+    QUrl url(QString("https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=%1").arg(apiKey));
+
+    QNetworkRequest request(url);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, "application/json");
+
+    QByteArray base64Image = imageData.toBase64();
+
+    QJsonObject inlineData;
+    inlineData["mime_type"] = "image/png";
+    inlineData["data"] = QString::fromLatin1(base64Image);
+
+    QJsonObject imagePart;
+    imagePart["inline_data"] = inlineData;
+
+    QJsonObject textPart;
+    QString prompt = QString::fromUtf8(
+        "You are parsing a Peking University course schedule screenshot.\n"
+        "The screenshot may contain complex nested course descriptions like:\n"
+        "- 上课信息\n"
+        "- 教师\n"
+        "- 备注\n"
+        "- 习题课\n"
+        "- 实验课\n"
+        "- 主\n"
+        "- 备\n"
+        "- 考试信息\n"
+        "Your task is to extract ALL actual weekly class sessions and convert them into structured JSON.\n"
+        "Return ONLY valid JSON.\n"
+        "Do NOT output markdown.\n"
+        "Do NOT explain anything.\n"
+        "IMPORTANT - SPATIAL REASONING PRIORITY:\n"
+        "This screenshot is a VISUAL timetable grid.\n"
+        "You must determine regular class time primarily based on the course block's visual position inside the timetable grid:\n"
+        "- horizontal position = day of week\n"
+        "- vertical position = class periods\n"
+        "Use the actual grid alignment as the highest priority source for determining:\n"
+        "- day\n"
+        "- startPeriod\n"
+        "- endPeriod\n"
+        "Do NOT rely only on OCR text order.\n"
+        "Do NOT infer class time from nearby unrelated text.\n"
+        "A course block may contain messy text, but its actual scheduled time should be determined by where the block is visually located in the timetable.\n"
+        "For example:\n"
+        "- If a course block is visually located under Wednesday column:\n"
+        "  day = 3\n"
+        "- If a course block spans rows for periods 5-6:\n"
+        "  startPeriod = 5\n"
+        "  endPeriod = 6\n"
+        "Even if OCR text is noisy, prioritize the visual grid layout.\n"
+        "\n"
+        "EXCEPTION:\n"
+        "If tutorial/lab/discussion sessions (such as 习题课 / 实验课 / 讨论课)\n"
+        "appear only in text remarks and are NOT shown as a visual block in the timetable grid,\n"
+        "then parse their time from the textual description.\n"
+        "Grid position should be used for regular timetable blocks.\n"
+        "Text parsing should be used for extra sessions mentioned in remarks.\n"
+        "\n"
+        "Output format:\n"
+        "{\n"
+        "  \"courses\": [\n"
+        "    {\n"
+        "      \"day\": 1,\n"
+        "      \"startPeriod\": 1,\n"
+        "      \"endPeriod\": 2,\n"
+        "      \"examTime\": \"\",\n"
+        "      \"location\": \"\",\n"
+        "      \"name\": \"\",\n"
+        "      \"teacher\": \"\",\n"
+        "      \"weekType\": 0\n"
+        "    }\n"
+        "  ]\n"
+        "}\n"
+        "Rules:\n"
+        "1. Extract the real course name only. Remove labels such as (主), (备), 主, 备, 上课信息, 备注, 教师, 考试信息.\n"
+        "2. If teacher field exists (教师：xxx), extract only actual teacher name.\n"
+        "3. If 习题课/实验课/讨论课 appears with separate time/location, create an additional course object with name: original name + suffix (e.g., \"线性代数A(II)习题课\").\n"
+        "4. Parse week frequency: 每周→weekType=0, 单周→weekType=1, 双周→weekType=2. Default to 0 if unclear.\n"
+        "5. Parse day: 周一→1, 周二→2, 周三→3, 周四→4, 周五→5, 周六→6, 周日→7.\n"
+        "6. Parse periods: 1~2节 or 1-2节 → startPeriod=1, endPeriod=2.\n"
+        "7. If multiple classrooms listed (e.g., 三教506、三教308), store all in location field.\n"
+        "8. Ignore exam schedules. Set examTime to empty string.\n"
+        "9. Only output actual recurring teaching sessions. Do NOT output exam-only events, remarks, course IDs, credits, or notes.\n"
+        "10. Return ONLY valid JSON."
+    );
+    textPart["text"] = prompt;
+
+    QJsonArray parts;
+    parts.append(textPart);
+    parts.append(imagePart);
+
+    QJsonObject content;
+    content["parts"] = parts;
+
+    QJsonArray contents;
+    contents.append(content);
+
+    QJsonObject root;
+    root["contents"] = contents;
+
+    QByteArray jsonData = QJsonDocument(root).toJson(QJsonDocument::Compact);
+
+    if (!m_networkManager) {
+        m_networkManager = new QNetworkAccessManager(this);
+    }
+
+    QNetworkReply* reply = m_networkManager->post(request, jsonData);
+    connect(reply, &QNetworkReply::finished, this, [this, reply]() {
+        onGeminiReplyFinished(reply);
+    });
+}
+
+void DashboardPage::onGeminiReplyFinished(QNetworkReply* reply)
+{
+    if (m_loadingDialog) {
+        m_loadingDialog->close();
+        m_loadingDialog->deleteLater();
+        m_loadingDialog = nullptr;
+    }
+
+    if (reply->error() != QNetworkReply::NoError) {
+        QMessageBox::warning(this, "导入失败", QString("API请求失败: %1").arg(reply->errorString()));
+        reply->deleteLater();
+        return;
+    }
+
+    QByteArray responseData = reply->readAll();
+    reply->deleteLater();
+
+    QJsonDocument doc = QJsonDocument::fromJson(responseData);
+    if (doc.isNull()) {
+        QMessageBox::warning(this, "导入失败", "无法解析API返回的数据");
+        return;
+    }
+
+    QJsonObject root = doc.object();
+    if (!root.contains("candidates") || root["candidates"].toArray().isEmpty()) {
+        QMessageBox::warning(this, "导入失败", "API返回格式不正确");
+        return;
+    }
+
+    QJsonArray candidates = root["candidates"].toArray();
+    QJsonObject firstCandidate = candidates[0].toObject();
+    if (!firstCandidate.contains("content") || !firstCandidate["content"].toObject().contains("parts")) {
+        QMessageBox::warning(this, "导入失败", "API返回格式缺少内容");
+        return;
+    }
+
+    QJsonObject content = firstCandidate["content"].toObject();
+    QJsonArray parts = content["parts"].toArray();
+    if (parts.isEmpty()) {
+        QMessageBox::warning(this, "导入失败", "API返回没有内容");
+        return;
+    }
+
+    QString jsonText = parts[0].toObject()["text"].toString();
+
+    jsonText = jsonText.trimmed();
+    if (jsonText.startsWith("```")) {
+        int firstNewline = jsonText.indexOf('\n');
+        int lastTripleBacktick = jsonText.lastIndexOf("```");
+        if (firstNewline > 0 && lastTripleBacktick > firstNewline) {
+            jsonText = jsonText.mid(firstNewline + 1, lastTripleBacktick - firstNewline - 1);
+        }
+    }
+    jsonText = jsonText.trimmed();
+
+    QJsonDocument coursesDoc = QJsonDocument::fromJson(jsonText.toUtf8());
+    if (coursesDoc.isNull()) {
+        qDebug() << "Failed to parse JSON. Raw response:" << jsonText.left(500);
+        QMessageBox::warning(this, "导入失败", QString("无法解析课程数据\n\n原始响应:\n%1").arg(jsonText.left(200)));
+        return;
+    }
+
+    QJsonArray coursesArray;
+    if (coursesDoc.isArray()) {
+        coursesArray = coursesDoc.array();
+    } else if (coursesDoc.isObject()) {
+        QJsonObject coursesObj = coursesDoc.object();
+        if (coursesObj.contains("courses") && coursesObj["courses"].isArray()) {
+            coursesArray = coursesObj["courses"].toArray();
+        } else {
+            QMessageBox::warning(this, "导入失败", "JSON格式不正确");
+            return;
+        }
+    } else {
+        QMessageBox::warning(this, "导入失败", "无法解析课程JSON");
+        return;
+    }
+
+    QList<Course> importedCourses;
+    for (int i = 0; i < coursesArray.size(); ++i) {
+        QJsonObject obj = coursesArray[i].toObject();
+        Course c;
+        c.name = obj["name"].toString();
+        c.teacher = obj["teacher"].toString();
+        c.location = obj["location"].toString();
+        c.examTime = obj["examTime"].toString();
+        c.day = obj["day"].toInt(1);
+        c.startPeriod = obj["startPeriod"].toInt(1);
+        c.endPeriod = obj["endPeriod"].toInt(2);
+        c.weekType = obj["weekType"].toInt(0);
+
+        if (!c.name.isEmpty()) {
+            importedCourses.append(c);
+        }
+    }
+
+    if (importedCourses.isEmpty()) {
+        QMessageBox::warning(this, "导入失败", "未找到有效的课程数据");
+        return;
+    }
+
+    if (!DataManager::instance().courses().isEmpty()) {
+        QMessageBox::StandardButton reply = ConfirmDialog::confirm3(this, "导入课表",
+            "当前已有课程，是否覆盖？\n选择\"是\"将清空现有课程并导入新课表\n选择\"否\"将追加到现有课程",
+            "是", "否", false);
+
+        if (reply == QMessageBox::Yes) {
+            auto courses = DataManager::instance().courses();
+            for (int i = courses.size() - 1; i >= 0; --i) {
+                DataManager::instance().deleteCourse(i);
+            }
+        } else if (reply == QMessageBox::Cancel) {
+            return;
+        }
+    }
+
+    for (const Course& c : importedCourses) {
+        DataManager::instance().addCourse(c);
+    }
+
+    QMessageBox::information(this, "导入成功", QString("成功导入 %1 门课程").arg(importedCourses.size()));
+    renderCourses();
 }

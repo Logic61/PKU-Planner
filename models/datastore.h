@@ -37,6 +37,11 @@ public:
     void deleteTask(int index) override;
     void markTaskCompleted(int index, bool completed) override;
 
+    // Additional methods used by DataManager
+    void clear() { m_courses.clear(); m_tasks.clear(); emit coursesChanged(); emit tasksChanged(); }
+    void setCourses(const QList<Course>& c) { m_courses = c; emit coursesChanged(); }
+    void setTasks(const QList<Task>& t) { m_tasks = t; emit tasksChanged(); }
+
 signals:
     void coursesChanged();
     void tasksChanged();

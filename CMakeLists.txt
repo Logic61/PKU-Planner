@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.16)
 project(PKUPlanner VERSION 0.1 LANGUAGES CXX)
 
 # 精准指向Qt6安装路径
-set(CMAKE_PREFIX_PATH "C:/Qt/6.10.0/msvc2022_64")
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -17,11 +16,16 @@ if(MSVC)
     add_compile_options(/permissive- /Zc:__cplusplus /utf-8)
 endif()
 
+# 为MinGW添加UTF-8支持
+if(MINGW)
+    add_compile_options(-finput-charset=utf-8 -fexec-charset=utf-8)
+endif()
+
 # 确保C++标准符合Qt6要求
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Widgets)
+find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
 
 set(QT_DEPLOY_BIN_DIR "C:/Qt/6.10.0/mingw_64/bin")
 find_program(WINDEPLOYQT_EXECUTABLE
@@ -122,7 +126,7 @@ qt_add_executable(PKUPlanner
     ${PROJECT_SOURCES}
 )
 
-target_link_libraries(PKUPlanner PRIVATE Qt6::Widgets)
+target_link_libraries(PKUPlanner PRIVATE Qt6::Widgets Qt6::Network)
 
 add_custom_command(TARGET PKUPlanner POST_BUILD
     COMMAND "${WINDEPLOYQT_EXECUTABLE}" --dir "$<TARGET_FILE_DIR:PKUPlanner>" "$<TARGET_FILE:PKUPlanner>"
