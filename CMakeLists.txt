@@ -2,7 +2,13 @@ cmake_minimum_required(VERSION 3.16)
 
 project(PKUPlanner VERSION 0.1 LANGUAGES CXX)
 
-# 精准指向Qt6安装路径
+# =============================================================================
+# Zero-Config Qt Discovery
+# cmake/FindQtAuto.cmake scans C:/Qt, D:/Qt, QT_ROOT automatically.
+# No manual CMAKE_PREFIX_PATH needed.
+# =============================================================================
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
+include(FindQtAuto)
 
 set(CMAKE_AUTOUIC ON)
 set(CMAKE_AUTOMOC ON)
@@ -26,13 +32,6 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(Qt6 REQUIRED COMPONENTS Widgets Network)
-
-set(QT_DEPLOY_BIN_DIR "C:/Qt/6.10.0/mingw_64/bin")
-find_program(WINDEPLOYQT_EXECUTABLE
-    NAMES windeployqt windeployqt6
-    HINTS "${QT_DEPLOY_BIN_DIR}"
-    REQUIRED
-)
 
 set(PROJECT_SOURCES
     main.cpp
@@ -128,9 +127,14 @@ qt_add_executable(PKUPlanner
 
 target_link_libraries(PKUPlanner PRIVATE Qt6::Widgets Qt6::Network)
 
-add_custom_command(TARGET PKUPlanner POST_BUILD
-    COMMAND "${WINDEPLOYQT_EXECUTABLE}" --dir "$<TARGET_FILE_DIR:PKUPlanner>" "$<TARGET_FILE:PKUPlanner>"
-    COMMENT "Deploying Qt runtime for PKUPlanner"
-)
+include(Qt6Deployment OPTIONAL RESULT_VARIABLE _has_deploy)
+if(_has_deploy)
+    qt_deploy_executable(PKUPlanner)
+else()
+    add_custom_command(TARGET PKUPlanner POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E env "PATH=$ENV{PATH}" "${WINDEPLOYQT_EXECUTABLE}" --dir "$<TARGET_FILE_DIR:PKUPlanner>" "$<TARGET_FILE:PKUPlanner>"
+        COMMENT "Deploying Qt runtime"
+    )
+endif()
 
 qt_finalize_executable(PKUPlanner)
